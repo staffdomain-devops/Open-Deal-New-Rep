@@ -106,8 +106,49 @@ Features deferred to a later milestone — either after v1 ships or when Lane B 
 
 ## Traceability
 
-*(Populated by roadmapper)*
-
-| REQ-ID | Phase |
-|--------|-------|
-| | |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| ASSM-01 | Phase 2 | Pending |
+| ASSM-02 | Phase 2 | Pending |
+| ASSM-03 | Phase 2 | Pending |
+| ASSM-04 | Phase 2 | Pending |
+| ASSM-05 | Phase 2 | Pending |
+| ASSM-06 | Phase 2 | Pending |
+| ASSM-07 | Phase 2 | Pending |
+| ASSM-08 | Phase 2 | Pending |
+| ASSM-09 | Phase 1 | Pending |
+| FILT-01 | Phase 3 | Pending |
+| FILT-02 | Phase 3 | Pending |
+| ROUT-01 | Phase 3 | Pending |
+| GEN-01 | Phase 4 | Pending |
+| GEN-02 | Phase 4 | Pending |
+| GEN-03 | Phase 4 | Pending |
+| GEN-04 | Phase 4 | Pending |
+| GEN-05 | Phase 4 | Pending |
+| GEN-06 | Phase 4 | Pending |
+| GEN-07 | Phase 4 | Pending |
+| GEN-08 | Phase 4 | Pending |
+| LINT-01 | Phase 5 | Pending |
+| LINT-02 | Phase 5 | Pending |
+| LINT-03 | Phase 5 | Pending |
+| LINT-04 | Phase 5 | Pending |
+| LINT-05 | Phase 5 | Pending |
+| BODY-01 | Phase 5 | Pending |
+| BODY-02 | Phase 5 | Pending |
+| BODY-03 | Phase 5 | Pending |
+| WB-01 | Phase 6 | Pending |
+| WB-02 | Phase 6 | Pending |
+| WB-03 | Phase 6 | Pending |
+| WB-04 | Phase 6 | Pending |
+| WB-05 | Phase 6 | Pending |
+| WB-06 | Phase 6 | Pending |
+| REV-01 | Phase 6 | Pending |
+| REV-02 | Phase 6 | Pending |
+| REV-03 | Phase 6 | Pending |
+| REV-04 | Phase 6 | Pending |
+| REV-05 | Phase 6 | Pending |
+| INFRA-01 | Phase 7 | Pending |
+| INFRA-02 | Phase 7 | Pending |
+| INFRA-03 | Phase 7 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| INFRA-05 | Phase 1 | Pending |

@@ -1,154 +1,124 @@
-# Requirements — Staff Domain Re-Engagement Pipeline
-
-**Version:** v1 (2026-08-19)
-**Source:** SD_Reengagement_LaneA_Build_Spec.md v1.0 + v1.1 amendment + research findings
-
----
+# Requirements — Lane A Owner-Changed Re-Engagement Pipeline
 
 ## v1 Requirements
 
-### Assembly — Stage 1
+### Scaffolding
 
-- [ ] **ASSM-01**: Pipeline fetches the company record associated with each contact from HubSpot
-- [ ] **ASSM-02**: Pipeline fetches all contacts associated with that company (firstname, lastname, jobtitle, num_contacted_notes, notes_last_contacted) to identify colleagues for brief
-- [ ] **ASSM-03**: Pipeline fetches all company-level deals (dealname, dealstage, createdate, closedate); filters junk deals (names starting with "(Test)", "(delete)", or containing "test" as standalone token)
-- [ ] **ASSM-04**: Pipeline fetches notes for the contact and 1–2 key colleagues; filters bot-noise patterns (job-ad alerts, enrichment notifications); extracts live hiring signals into a separate brief field; tags sensitive content INTERNAL - NEVER REFERENCE
-- [ ] **ASSM-05**: Pipeline resolves the handover name by fetching CALL and outbound EMAIL engagements for the contact; takes the more recent of the two by hs_timestamp; resolves owner ID to first name via owners API; records whether that owner isActive
-- [ ] **ASSM-06**: Pipeline resolves the sending rep's first name from the contact's current hubspot_owner_id via the HubSpot owners API
-- [ ] **ASSM-07**: Pipeline determines country from company record (AU/NZ/US/UK); applies per-geography copy rules and timezone resolution to brief; non-AU records receive country-neutral brief instructions
-- [ ] **ASSM-08**: Pipeline builds a plain-text research brief per spec §3.7 field order for each contact that passes filters
-- [ ] **ASSM-09**: A rate-limiter class enforces HubSpot API limits (100 req/10s general; 4 req/s for CRM Search endpoints) proactively, not just via retry-after headers
+- [ ] **SCAF-01**: `scripts/utils.py` copied from Inbound project unchanged (write_dlq, retry helpers, safe_truncate)
+- [ ] **SCAF-02**: `requirements.txt` lists five dependencies with minimum version constraints (`hubspot-api-client>=12.0.0`, `requests>=2.31.0`, `beautifulsoup4>=4.12.0`, `anthropic>=0.30.0`, `tenacity>=9.0.0`)
+- [ ] **SCAF-03**: `config/vertical_routing.py` implements 14-row vertical routing table (spec §4) — substring match, case-insensitive, first hit wins
+- [ ] **SCAF-04**: `config/close_bank.py` implements 5-option close bank with assignment logic (spec §5.3): option 3 for ≥30 touches, option 4 for C-suite, option 5 for strong case-study match, else rotate 1→2→1→2
+- [ ] **SCAF-05**: `config/system_prompt.py` holds the verbatim system prompt from spec §5.2 (v1.0 + v1.1 amendments) and the v1.1 OUTPUT block appended instruction
 
-### Filtering — Stage 2
+### Data Fetch & Record Assembly (Stage 1)
 
-- [ ] **FILT-01**: Pipeline applies all 6 exclusion filters (E1: last-activity owner == current owner; E2: last-activity owner still active but not current owner; E3: activity in last 14 days; E4: duplicate contact records; E5: no engagement history; E6: unsubscribed/bounced/invalid email)
-- [ ] **FILT-02**: Excluded contacts are written to an exclusion report (with filter code and reason) — not discarded; report is included in the Teams notification for JP review before generation proceeds
+- [ ] **FETCH-01**: `scripts/fetch_list.py` accepts `INPUT_LIST_ID` env var; fetches all contact IDs on the HubSpot list via the Lists API
+- [ ] **FETCH-02**: For each contact, fetch contact properties: `firstname`, `lastname`, `jobtitle`, `company`, `industry`, `hubspot_owner_id`, `email`, `hs_email_optout`, `num_contacted_notes`, `notes_last_contacted`, `country`, `phone`
+- [ ] **FETCH-03**: Fetch associated company; fetch company properties: `name`, `industry`, `country`
+- [ ] **FETCH-04**: Fetch all contacts associated with that company; for each capture `firstname`, `lastname`, `jobtitle`, `num_contacted_notes`, `notes_last_contacted`
+- [ ] **FETCH-05**: Fetch all deals associated with the company; capture `dealname`, `dealstage`, `createdate`, `closedate`; filter junk deals (`(Test)`, `(delete)`, standalone `test`)
+- [ ] **FETCH-06**: Fetch notes on the contact and 1–2 key colleagues; apply bot-noise filter (discard notes whose body starts with or contains within first 80 chars: job-ad alert prefixes from spec §3.3); parse job-ad notes separately into live hiring signals
+- [ ] **FETCH-07**: Resolve handover name — fetch all CALL engagements (most recent by `hs_timestamp`) and all outbound EMAIL engagements (`hs_email_direction == EMAIL`) for the contact; take later of the two; resolve owner ID to name + `isActive` via owners API
+- [ ] **FETCH-08**: Geo resolution — resolve company country to AU / NZ / US / UK via resolution ladder (spec §3.6 / Lane B v2.1 §3.6); flag unresolved as data-error hold
+- [ ] **FETCH-09**: Contact departure check — scan retained notes for "has left" / "no longer with" / "moved on from" against the contact's own name; flag hits for JP review (spec v1.1 checklist item 17)
+- [ ] **FETCH-10**: Mark whether the recipient is the only contacted person on the company (brief must say so if true)
+- [ ] **FETCH-11**: Write per-contact assembled data to `$RUNNER_TEMP/contact_{id}.json`
 
-### Routing — Stage 3
+### Exclusion Filters (Stage 2)
 
-- [ ] **ROUT-01**: Pipeline maps the contact's industry property to a case study name + email 3 and email 4 content URLs using the routing table from spec §4 (substring match, case-insensitive, first-hit wins; no-match fallback applies)
+- [ ] **EXCL-01**: E1 — skip if last-activity owner ID == current `hubspot_owner_id`; add to exclusion report with reason
+- [ ] **EXCL-02**: E2 — hold if last-activity owner is still `isActive` but is not current owner; add to exclusion report
+- [ ] **EXCL-03**: E3 — skip if any engagement in the last 14 days
+- [ ] **EXCL-04**: E4 — detect duplicate contact records (same email + same company ID, different record IDs); report for merge
+- [ ] **EXCL-05**: E5 — skip if zero CALL engagements and zero outbound EMAIL engagements
+- [ ] **EXCL-06**: E6 — skip if contact email is unsubscribed (`hs_email_optout`), bounced, or invalid
+- [ ] **EXCL-07**: Write `$RUNNER_TEMP/exclusion_report.json` with all excluded contacts, their IDs, and reason codes; do NOT silently discard
 
-### Generation — Stage 4
+### Routing & Brief Assembly (Stage 3)
 
-- [ ] **GEN-01**: Pipeline submits one Anthropic Batch API request per contact using Claude Sonnet 5 (`claude-sonnet-5`); all contacts in a run are submitted as a single batch
-- [ ] **GEN-02**: System prompt applied verbatim from spec §5.2 with 1-hour ephemeral cache TTL (`{"type": "ephemeral", "ttl": "1h"}`) — this corrects a spec bug where `{type: "ephemeral"}` defaults to 5-min TTL, which expires mid-batch
-- [ ] **GEN-03**: Close bank option (1–5 from spec §5.3) assigned by code before generation using the rules: option 3 for >= 30 touches, option 4 for C-suite titles, option 5 for strong case-study match, otherwise rotate 1→2
-- [ ] **GEN-04**: Each batch request uses `custom_id = contact_id` for O(1) result mapping after batch completes
-- [ ] **GEN-05**: Batch ID is persisted as a GitHub Actions artifact before the polling loop begins (prevents data loss if the Actions job times out before batch completes)
-- [ ] **GEN-06**: Pipeline polls batch status every 60 seconds until `processing_status == "ended"`; results are streamed and matched by `custom_id`; result types (succeeded/errored/canceled/expired) are each handled explicitly
-- [ ] **GEN-07**: Generated output per contact is 8-key JSON (e1–e5 each with subject + body, call1 body, call2 body, pin body) per schema from spec §2
-- [ ] **GEN-08**: Max tokens set to 3000 per spec v1.1 amendment (covers 5 emails + 2 call notes + 1 pin)
+- [ ] **ROUTE-01**: Apply vertical routing table; record matched row (case study name, email 3 URL, email 4 URL); fallback to default row if no match or industry empty
+- [ ] **ROUTE-02**: Assign close bank option per assignment rules; code rotates 1→2→1→2 as default
+- [ ] **ROUTE-03**: Assemble per-contact research brief in exact field-order format from spec §3.7; mark sensitive items `INTERNAL - NEVER REFERENCE`; mark job-ad signals `LIVE HIRING SIGNALS (public job ads)`
+- [ ] **ROUTE-04**: No-deal branch: if company has zero non-junk deals, brief must state "No previous deal on record. Do not invent one."
+- [ ] **ROUTE-05**: Colleague rule: include first name + job title for 1–2 most-contacted colleagues who have `num_contacted_notes >= 1`; if recipient is only contacted person, brief says so explicitly
 
-### Lint — Stage 5
+### Generation (Stage 4)
 
-- [ ] **LINT-01**: All 18 lint checks from spec §7.1–§7.2 applied to every contact's output (hard failures 1–12 from v1.0 + checks 13–18 from v1.1 amendment)
-- [ ] **LINT-02**: Hard failure → regenerate once; if still failing → flag contact for JP review, skip write-back; never write invalid output to HubSpot
-- [ ] **LINT-03**: Soft warnings (§7.2) flag contact for human review without blocking write-back
-- [ ] **LINT-04**: Idempotency guard: before Stage 7 write-back, pipeline checks whether `email_1_subject` is already non-empty on the contact; skips write unless `--force-regenerate` flag is passed (prevents double-write from duplicate triggers)
-- [ ] **LINT-05**: Pipeline accumulates `message.usage` (input tokens, output tokens, cache read/write tokens) per contact throughout the batch; total token counts and estimated dollar cost are calculated for the run summary
+- [ ] **GEN-01**: `scripts/generate_campaign.py` reads per-contact JSON and calls `claude-sonnet-5`
+- [ ] **GEN-02**: System prompt sent with `cache_control: {type: "ephemeral"}`; user message is the assembled brief
+- [ ] **GEN-03**: `max_tokens=3000`; one call per contact; generates all 8 deliverables in one response
+- [ ] **GEN-04**: Realtime API for iteration/pilot; Batch API (`anthropic.batches`) wired for full-list runs (toggle via `INPUT_USE_BATCH_API` env var)
+- [ ] **GEN-05**: Output parsed against 8-key schema: `e1`–`e5` (each `subject` + `body`) + `call1` + `call2` + `pin` (each `body` only)
+- [ ] **GEN-06**: On `stop_reason == "max_tokens"`, raise clear error; on JSON parse failure, save raw response before raising
+- [ ] **GEN-07**: Write result to `$RUNNER_TEMP/generated_{id}.json`
 
-### Assemble Bodies — Stage 6
+### Lint Engine (Stage 5)
 
-- [ ] **BODY-01**: Case study link placeholder appended to e2 body after generation: `[Insert {case study name} case study link here]` on a new line after sign-off
-- [ ] **BODY-02**: Booking link placeholder appended to e5 body: `[Insert rep booking link here]` on a new line after sign-off
-- [ ] **BODY-03**: Pre-send guard: pipeline rejects any assembled email body that contains a literal `[` character (catches un-substituted placeholders before write-back)
+- [ ] **LINT-01**: Hard checks 1–12 from spec v1.0 §7.1 (JSON schema, em dash, banned words, offshore vocabulary, subject rules, URL whitelist, sign-off, word count, close bank match, name invention, no-agenda phrase, INTERNAL leak)
+- [ ] **LINT-02**: Hard checks 13–18 from spec v1.1 §7 (8-key schema + word caps, required labels, Lane A voicemail framing, sensitive-material direction, timezone warning, sequence map string)
+- [ ] **LINT-03**: Soft warnings from spec v1.0 §7.2 (tic-capped phrases, 4+-word repeated phrases, email 3 missing question mark, inline URL position, cross-contact duplicate subjects)
+- [ ] **LINT-04**: On hard fail: regenerate once; if second attempt also fails, flag contact for manual review; do not write to HubSpot
+- [ ] **LINT-05**: Human review sample: dump every 10th output + all soft-warning outputs to `$RUNNER_TEMP/review_sample.json` for JP
 
-### Write-back — Stage 7
+### Body Assembly (Stage 6)
 
-- [ ] **WB-01**: Preflight check verifies all 10 email contact properties (`email_1_subject` through `email_5_body`) exist in HubSpot and have `fieldType: textarea`; pipeline fails fast with an actionable error if any property is missing or has the wrong type (prevents silent paragraph-break stripping)
-- [ ] **WB-02**: Pipeline writes 10 email contact properties per contact via HubSpot batch update API (100 contacts per batch, matched by `hs_object_id`)
-- [ ] **WB-03**: Pipeline writes call task note for Call 1 (Day 7) to a contact property (default: `task_note_1`; exact property name confirmed before build)
-- [ ] **WB-04**: Pipeline writes call task note for Call 2 (Day 17) to a contact property (default: `task_note_2`; exact property name confirmed before build)
-- [ ] **WB-05**: Pipeline writes pinned contact note content to a contact property (default: `pin_note`; exact property name confirmed before build)
-- [ ] **WB-06**: Contacts that fail in any pipeline stage after all retries are written to `failed_contacts.json` as a GitHub Actions artifact; pipeline also enrolls failed contacts in a designated HubSpot segment (segment ID configured via environment variable) for retry
+- [ ] **ASSEM-01**: Append to E2 body (after sign-off): `[Insert {case study name} case study link here]`
+- [ ] **ASSEM-02**: Append to E5 body (after sign-off): `[Insert rep booking link here]`
+- [ ] **ASSEM-03**: E1, E3, E4 get no appended content (inline URLs already in E3/E4 body from generation)
 
-### Review and Notifications
+### HubSpot Write-back (Stage 7)
 
-- [ ] **REV-01**: Exclusion report (all E1–E6 contacts with filter code and reason) posted to Teams via Power Automate webhook before generation begins; JP must review exclusions before the run proceeds
-- [ ] **REV-02**: Post-generation review file (every 10th processed contact + all soft-warning contacts) posted to Teams for JP eyes-on sampling
-- [ ] **REV-03**: Run cost summary (total input/output/cache tokens, estimated dollar cost) posted to Teams at end of run
-- [ ] **REV-04**: Failed contacts list (contacts that errored in any stage, with stage and error) posted to Teams
-- [ ] **REV-05**: All Teams notifications sent via Power Automate webhook URL (stored as GitHub Secret `TEAMS_WEBHOOK_URL`; legacy `webhook.office.com` URLs are not supported)
+- [ ] **WRITE-01**: Batch update 10 contact properties per contact: `email_1_subject`, `email_1_body` … `email_5_subject`, `email_5_body` — all **multi-line text** type; 100 records per batch; match by `hs_object_id`
+- [ ] **WRITE-02**: Pre-write: verify all 10 properties exist as multi-line text type on first run (abort if any is single-line text)
+- [ ] **WRITE-03**: Pre-send bracket guard: check no `[` appears in any email property on enrolled contacts; fail hard if found
+- [ ] **WRITE-04**: Create two task engagements per contact: type CALL, assigned to `hubspot_owner_id`, subjects `Lane A Call 1 — {firstname} {lastname} — touch 3 of 7` and `Lane A Call 2 — … — touch 6 of 7`, bodies = generated call notes, due dates = enrolment date + 7 / + 17 days at recipient-local time per geo
+- [ ] **WRITE-05**: Create note engagement with pin body; pin to contact record (verify API support at pilot; fallback: log manual pin list)
+- [ ] **WRITE-06**: Sender binding — all tasks assigned to current `hubspot_owner_id`; if ownership changes between generation and write, regenerate, never reassign
+- [ ] **WRITE-07**: Paragraph separator: real `\n\n` in all body properties; verify rendering in sequence editor on 2–3 records before full run
 
-### Infrastructure
+### Error Handling
 
-- [ ] **INFRA-01**: GitHub Actions `workflow_dispatch` trigger; HubSpot workflow passes contact IDs as a JSON array in the workflow inputs payload
-- [ ] **INFRA-02**: Two-job GitHub Actions workflow: `prepare` job (Stages 1–3 + batch submission) and `complete` job (Batch API polling + Stages 5–7); `complete` depends on `prepare`
-- [ ] **INFRA-03**: Batch ID written as GitHub Actions artifact by `prepare` job; `complete` job reads it to resume polling
-- [ ] **INFRA-04**: GitHub Secrets: `HUBSPOT_TOKEN` (HubSpot Private App token), `ANTHROPIC_API_KEY`, `TEAMS_WEBHOOK_URL`
-- [ ] **INFRA-05**: Python 3.12 package structure: `pipeline/` subpackage with stage modules (`assemble.py`, `filter.py`, `route.py`, `generate.py`, `lint.py`, `assemble_bodies.py`, `write_back.py`); `run.py` as sole orchestrator entry point
+- [ ] **ERR-01**: All scripts implement exponential backoff retry (up to 6 attempts, 60s max) on 429 and 5xx — reuse `utils.py` from Inbound
+- [ ] **ERR-02**: Each script writes DLQ sentinel at startup; updates with error details on failure
+- [ ] **ERR-03**: GitHub Actions uploads `failed_contacts.json` and `exclusion_report.json` as artifacts on failure
+- [ ] **ERR-04**: GitHub Actions POSTs Teams webhook on failure with contact info, failed step, error excerpt, run log link
 
----
+### CI/CD
 
-## v2 Requirements
+- [ ] **CI-01**: `.github/workflows/campaign.yml` orchestrates: fetch list → for each passing contact: assemble → exclude → route → generate → lint → assemble bodies → write-back
+- [ ] **CI-02**: `workflow_dispatch` inputs: `list_id` (required), `pilot_mode` (boolean, default true — caps at 20 contacts)
+- [ ] **CI-03**: Pilot mode enforced: if `pilot_mode=true` and contact count > 20, process only first 20 and log a warning
+- [ ] **CI-04**: Upload `exclusion_report.json` and `review_sample.json` as artifacts on every run (not just failure)
+- [ ] **CI-05**: Upload `campaign_output.json` (full batch results) as artifact on success
+- [ ] **CI-06**: Secrets: `HUBSPOT_API_KEY`, `ANTHROPIC_API_KEY`, `TEAMS_WEBHOOK_URL`
 
-Features deferred to a later milestone — either after v1 ships or when Lane B spec arrives.
+## v2 Requirements (Deferred)
 
-- Realtime API mode for local dev iteration (< 20 contacts without Batch API)
-- Lane B implementation (pending Lane B Build Spec v2.1)
-- HubSpot task engagement creation directly from pipeline (CALL type tasks with due dates) — v1 uses contact properties instead
-- HubSpot note pinning via engagements API (`hs_pinned_engagement_id`) — v1 writes pin content to a contact property
-- Cost regression detection across runs
-- Routing coverage report (which verticals matched, which used the fallback)
-- Lane config abstraction for multi-lane architecture
-
----
+- Batch API polling and result reconciliation for large runs (>500 contacts)
+- Cross-lane deduplication (contact enrolled in Lane B should not get Lane A too)
+- Automated test fixtures with mock HubSpot / Anthropic responses
+- Reply-kill workflow: unenrol sequence + close open Lane A call tasks on inbound reply (HubSpot workflow or daily sweep — verify at pilot)
+- Dashboard: JP-facing run summary (contacts processed, excluded, generated, written)
 
 ## Out of Scope
 
-- HubSpot sequence creation — sequences are built and managed manually in HubSpot
-- Automatic sequence enrollment — enrollment triggered by HubSpot workflow, not this pipeline
-- Frontend or UI — pipeline is triggered programmatically via GitHub Actions
-- Lane B — no spec yet; will be added when Lane B Build Spec v2.1 is available
-- HubSpot engagement creation (CALL type tasks with due dates/assignments) — simplified to contact properties in v1
-
----
+- Sending emails — HubSpot sequences handle send
+- Lane B pipeline — separate project
+- Breeze prompt generation — this pipeline writes finished emails
+- ZoomInfo enrichment — data already in HubSpot
+- Per-contact trigger mode — batch only
 
 ## Traceability
 
-| REQ-ID | Phase | Status |
-|--------|-------|--------|
-| ASSM-01 | Phase 2 | Pending |
-| ASSM-02 | Phase 2 | Pending |
-| ASSM-03 | Phase 2 | Pending |
-| ASSM-04 | Phase 2 | Pending |
-| ASSM-05 | Phase 2 | Pending |
-| ASSM-06 | Phase 2 | Pending |
-| ASSM-07 | Phase 2 | Pending |
-| ASSM-08 | Phase 2 | Pending |
-| ASSM-09 | Phase 1 | Pending |
-| FILT-01 | Phase 3 | Pending |
-| FILT-02 | Phase 3 | Pending |
-| ROUT-01 | Phase 3 | Pending |
-| GEN-01 | Phase 4 | Pending |
-| GEN-02 | Phase 4 | Pending |
-| GEN-03 | Phase 4 | Pending |
-| GEN-04 | Phase 4 | Pending |
-| GEN-05 | Phase 4 | Pending |
-| GEN-06 | Phase 4 | Pending |
-| GEN-07 | Phase 4 | Pending |
-| GEN-08 | Phase 4 | Pending |
-| LINT-01 | Phase 5 | Pending |
-| LINT-02 | Phase 5 | Pending |
-| LINT-03 | Phase 5 | Pending |
-| LINT-04 | Phase 5 | Pending |
-| LINT-05 | Phase 5 | Pending |
-| BODY-01 | Phase 5 | Pending |
-| BODY-02 | Phase 5 | Pending |
-| BODY-03 | Phase 5 | Pending |
-| WB-01 | Phase 6 | Pending |
-| WB-02 | Phase 6 | Pending |
-| WB-03 | Phase 6 | Pending |
-| WB-04 | Phase 6 | Pending |
-| WB-05 | Phase 6 | Pending |
-| WB-06 | Phase 6 | Pending |
-| REV-01 | Phase 6 | Pending |
-| REV-02 | Phase 6 | Pending |
-| REV-03 | Phase 6 | Pending |
-| REV-04 | Phase 6 | Pending |
-| REV-05 | Phase 6 | Pending |
-| INFRA-01 | Phase 7 | Pending |
-| INFRA-02 | Phase 7 | Pending |
-| INFRA-03 | Phase 7 | Pending |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
+| REQ-ID | Phase |
+|--------|-------|
+| SCAF-01–05 | Phase 1 |
+| FETCH-01–11 | Phase 2 |
+| EXCL-01–07 | Phase 3 |
+| ROUTE-01–05 | Phase 3 |
+| GEN-01–07 | Phase 4 |
+| LINT-01–05 | Phase 5 |
+| ASSEM-01–03 | Phase 5 |
+| WRITE-01–07 | Phase 6 |
+| ERR-01–04 | Phase 2–6 (each script) + Phase 7 |
+| CI-01–06 | Phase 7 |

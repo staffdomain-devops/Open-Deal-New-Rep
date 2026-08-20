@@ -1,12 +1,12 @@
-# Staff Domain Re-Engagement Pipeline
+# Lane A Owner-Changed Re-Engagement Pipeline
 
 ## What This Is
 
-A Python pipeline running on GitHub Actions that generates personalized 7-touch re-engagement sequences for Staff Domain's past prospects. For each contact, it assembles a research brief from HubSpot data, applies exclusion logic, calls Claude Sonnet 5 to produce 8 deliverables (5 emails + 2 call task notes + 1 pinned contact note), lints the output, and writes everything back to HubSpot. Triggered by a HubSpot workflow via the GitHub Actions `workflow_dispatch` API, passing contact IDs in the payload.
+A batch generation pipeline that produces 8 personalised deliverables per past prospect where the HubSpot contact owner has changed. The pipeline runs against a HubSpot list, assembles a research brief per contact from company data, deal history, engagement notes, and resolved handover name, then calls Claude Sonnet 5 once per contact to generate 5 re-engagement emails + 2 call-task briefings + 1 pinned contact note. All output is written back to HubSpot.
 
 ## Core Value
 
-Every email reads like someone went through the file — personalization changes the *reason* for each touch, not just the name.
+Every new account owner inherits a warm relationship they have never personally touched. The pipeline turns the file into a credible, personalised handover sequence — so the rep sounds like they've read the notes, because the generation input includes the notes.
 
 ## Requirements
 
@@ -16,54 +16,73 @@ Every email reads like someone went through the file — personalization changes
 
 ### Active
 
-- [ ] GitHub Actions workflow triggered by HubSpot via `workflow_dispatch` with contact IDs in payload
-- [ ] **Stage 1 — Assemble**: fetch company, all associated contacts (with touch counts), deals, notes (bot-filtered), engagements; resolve handover name via engagements API (calls + outbound emails); resolve rep first name from HubSpot owners API; apply geography check; build plain-text research brief per spec §3
-- [ ] **Stage 2 — Filter**: apply 6 exclusion filters (E1–E6); excluded contacts go to report (not discarded)
-- [ ] **Stage 3 — Route**: map contact industry to case study name + email 3/4 URLs via routing table (§4)
-- [ ] **Stage 4 — Generate**: one Claude Sonnet 5 call per contact; cached system prompt (ephemeral); max tokens 3000; produces 8-key JSON (e1–e5, call1, call2, pin); Batch API for full runs
-- [ ] **Stage 5 — Lint**: 18 checks (hard failures regenerate once, then flag; soft warnings flag only); review file for every 10th contact + all soft warnings
-- [ ] **Stage 6 — Assemble**: append case study placeholder to e2, booking link placeholder to e5
-- [ ] **Stage 7 — Write back**: 10 email properties (multi-line text), 2 call task engagements (type CALL, assigned to contact owner, correct due dates), 1 pinned note; batch by `hs_object_id`
-- [ ] Teams webhook notification for review file (exclusions report + soft-warning contacts)
-- [ ] Shared core architecture: lane-specific configs as separate modules (Lane A now, Lane B when spec arrives)
-- [ ] Dry-run mode: generate and lint without writing to HubSpot
-- [ ] Pre-send guard: reject any email property containing a literal `[` placeholder bracket
+- [ ] Accept a HubSpot list ID as input; iterate all contacts on that list
+- [ ] For each contact: fetch company, all company contacts, all company deals, notes (with bot-noise filter), handover name via engagement API
+- [ ] Apply exclusion filters E1–E6; write exclusion report for JP review
+- [ ] Route contact to vertical via industry lookup table; assign close bank option
+- [ ] Assemble per-contact research brief (spec §3.7 format)
+- [ ] Generate 8 deliverables in one Sonnet call: 5 emails + 2 call notes + 1 pin note
+- [ ] Lint all 18 checks; regenerate once on hard fail; write soft-warning review file
+- [ ] Assemble final email bodies (append link placeholders to E2/E5)
+- [ ] Write 10 email properties (multi-line text) to HubSpot via batch update
+- [ ] Create 2 call task engagements per contact; create + pin 1 contact note
+- [ ] Pre-send bracket guard: no literal `[` placeholder may reach a contact property
+- [ ] Sender binding: tasks and pin assigned to current `hubspot_owner_id`
+- [ ] GitHub Actions workflow: list-driven, pilot mode (20-record cap) + full run
+- [ ] Exclusion report and human-review sample dumped as workflow artifacts
+- [ ] Failure handling: DLQ + Teams/Slack notification
 
 ### Out of Scope
 
-- Lane B implementation — spec not yet written; shared core will accommodate it
-- HubSpot sequence creation — sequences are built manually in HubSpot by the team
-- Frontend / UI — pipeline is triggered programmatically
-- Automatic sequence enrolment — enrolment handled by HubSpot workflow
+- Per-contact trigger mode — this pipeline is batch, list-driven
+- Sending emails directly — HubSpot sequences handle send
+- ZoomInfo enrichment — data already in HubSpot before the pipeline runs
+- Lane B (different owner scenario) — separate pipeline
+- Breeze prompt generation — this pipeline writes finished emails
 
 ## Context
 
-- **Spec**: `SD_Reengagement_LaneA_Build_Spec.md` (v1.0, 17 Aug 2026) + `New SDR - Deal old deal outreach.md` (v1.1 amendment, 18 Aug 2026) define exact pipeline logic, voice rules, system prompt, close bank, lint checks, and routing table. These are the single source of truth — copy rule changes land in the spec first.
-- **Sample run**: `Sample run.txt` — 5-contact pilot (3 genuine Lane A passes, 2 adapted non-handover). Pipeline logic and voice verified by JP.
-- **HubSpot list**: 53672 (422 contacts at time of spec)
-- **Model**: `claude-sonnet-5` via Anthropic API (Python SDK). System prompt cached with `cache_control: ephemeral`. Batch API for full runs (~$2–3 at 500 contacts).
-- **Auth**: HubSpot Private App token + Anthropic API key stored as GitHub Secrets.
-- **Lane A premise**: contact owner has changed since last contact; previous rep has left the business. Emails written as warm handover from new account manager.
+Architecture mirrors the Inbound pipeline (`C:\Users\irahfo\Outreach\Inbound\`) in structure (Python scripts, GitHub Actions, `utils.py`, `requirements.txt`, `RUNNER_TEMP` JSON hand-off). Key differences from Inbound:
+
+| Dimension | Inbound | Lane A |
+|---|---|---|
+| Trigger | Per-contact via Make.com | Batch via list ID |
+| Data assembly | Simple fetch + enrich | 7-step brief assembly (company contacts, deals, notes filter, handover resolution, exclusion, routing, brief format) |
+| Deliverables | 1 email | 8 (5 emails + 2 call notes + 1 pin) |
+| HubSpot write | 2 properties + 1 note | 10 properties + 2 task engagements + 1 pinned note |
+| Lint | Basic (em-dash, JSON) | 18 checks (12 hard v1.0 + 6 hard v1.1) |
+| Model | `claude-sonnet-4-6` | `claude-sonnet-5` |
+| System prompt | Short inline | Long verbatim (cached, `cache_control: ephemeral`) |
+| Max tokens | 2048 | 3000 |
+| Batch API | No | Yes (for full runs) |
+| Routing | None | 14-row vertical table → case study + URLs |
+| Close bank | None | 5 options, code-assigned |
+
+Reuse `utils.py` from Inbound unchanged — same retry/DLQ patterns apply.
 
 ## Constraints
 
-- **Tech**: Python, `anthropic` SDK, HubSpot API v3 (private app token), GitHub Actions
-- **Trigger**: `workflow_dispatch` called by HubSpot workflow; contact IDs in JSON payload
-- **System prompt**: locked word-for-word in spec §5.2 — do not paraphrase or "improve"
-- **Close bank**: 5 locked closes (§5.3) — model must use exact wording, code assigns per contact
-- **URL whitelist**: exact list in §4 — linter rejects any other URL; slugs containing `offshore`, `outsourcing`, `bpo` banned even if on-site
-- **HubSpot write-back**: body properties must be MULTI-LINE TEXT type; verify before first write
-- **Rep name substitution**: resolved at generation time from HubSpot owners API (`hubspot_owner_id` on the contact); substituted into generated bodies before write-back
+- **Tech Stack**: Python 3.12, GitHub Actions (ubuntu-latest), HubSpot private app token, Anthropic Claude API
+- **Dependencies**: `hubspot-api-client>=12.0.0`, `requests>=2.31.0`, `beautifulsoup4>=4.12.0`, `anthropic>=0.30.0`, `tenacity>=9.0.0`
+- **HubSpot Properties**: 10 multi-line text properties must exist before first run (`email_1_subject` … `email_5_body`). Verify type before write.
+- **Secrets**: `HUBSPOT_API_KEY`, `ANTHROPIC_API_KEY`, `TEAMS_WEBHOOK_URL`
+- **Spec documents**: `SD_Reengagement_LaneA_Build_Spec.md` (v1.0) + `New SDR - Deal old deal outreach.md` (v1.1 amendment) — both in repo root
+- **Model**: `claude-sonnet-5` — not `claude-sonnet-4-6`
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Rep first name substituted at generation time | Contact body properties store finished copy; HubSpot sequence just pulls the token — avoids double sign-off | — Pending |
-| Batch API for full runs, realtime for dev/iteration | ~50% cost reduction at scale; dev loop doesn't need the savings | — Pending |
-| Shared core, lane configs as separate modules | Lane B spec incoming; don't duplicate pipeline infrastructure | — Pending |
-| Review notifications via Teams webhook | Fits existing team communication; JP reviews exclusions + samples before send | — Pending |
-| Note-pinning via engagements API (verify at pilot) | Pinning API support unconfirmed; fallback is manual pin pass | — Pending |
+|---|---|---|
+| Batch list-driven, not per-contact | Volume requires bulk run; exclusion report must be reviewed by JP before send | — Pending |
+| Reuse utils.py from Inbound | Same retry/DLQ/backoff patterns; no divergence needed | — Pending |
+| One Claude call per contact, all 8 deliverables | Model needs full arc to avoid repetition; call notes reference email content | — Pending |
+| Batch API for full runs | ~500 contacts; 50% cost reduction; switch to realtime for iteration | — Pending |
+| Cached system prompt | Long verbatim prompt; 10% price for all contacts after first | — Pending |
+| HubSpot write-back uses `hs_object_id` match | Batch update API, 100 per batch; consistent with spec §8 | — Pending |
+| Note pinning via engagements API | Verify support at pilot; manual fallback if API doesn't support pinning | — Pending |
+
+---
+*Last updated: 2026-08-21 after initialization*
 
 ## Evolution
 
@@ -75,12 +94,3 @@ This document evolves at phase transitions and milestone boundaries.
 3. New requirements emerged? → Add to Active
 4. Decisions to log? → Add to Key Decisions
 5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
----
-*Last updated: 2026-08-19 after initialization*

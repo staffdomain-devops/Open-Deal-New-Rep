@@ -1,120 +1,125 @@
-# Roadmap: Staff Domain Re-Engagement Pipeline
+# Roadmap — Lane A Owner-Changed Re-Engagement Pipeline
 
-## Overview
+**7 phases** | **All v1 requirements covered** ✓
 
-A 7-phase build that follows the pipeline's own stage order. Phases 1-3 establish the data foundation and deterministic stages (assemble, filter, route) before any LLM work begins. Phase 4 introduces Anthropic Batch API generation. Phase 5 adds lint and body assembly to validate and finalize output. Phase 6 wires in HubSpot write-back and all Teams notifications. Phase 7 wraps everything in GitHub Actions and runs the end-to-end pilot.
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|-----------------|
+| 1 | Scaffolding | Project structure, shared utilities, routing/close/prompt configs | SCAF-01–05 | 5 |
+| 2 | Record Assembly | Full Stage 1 data fetch per contact: company, contacts, deals, notes, handover, geo | FETCH-01–11 | 5 |
+| 3 | Exclusion & Routing | Exclusion filters E1–E6, vertical routing, close bank, brief assembly | EXCL-01–07, ROUTE-01–05 | 5 |
+| 4 | Generation | Claude API call with cached system prompt, 8-deliverable output | GEN-01–07 | 4 |
+| 5 | Lint & Assembly | 18-check lint engine, soft warnings, review sample, link placeholder append | LINT-01–05, ASSEM-01–03 | 5 |
+| 6 | Write-back | 10 email properties, 2 call tasks, 1 pinned note, sender binding, bracket guard | WRITE-01–07, ERR-01–02 | 6 |
+| 7 | CI/CD | GitHub Actions workflow, pilot mode, artifacts, failure handling | CI-01–06, ERR-03–04 | 5 |
 
-## Phases
+---
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+### Phase 1: Scaffolding
 
-Decimal phases appear between their surrounding integers in numeric order.
+**Goal:** Establish the project structure, copy shared utilities from Inbound, and encode the three static configs (routing table, close bank, system prompt) that every subsequent phase depends on.
+**Mode:** mvp
 
-- [ ] **Phase 1: Data Foundation** - ContactBrief model, HubSpot client, rate limiter, package scaffolding
-- [ ] **Phase 2: Stage 1 Assemble** - Full research brief assembly from HubSpot data
-- [ ] **Phase 3: Stages 2+3 Filter + Route** - Exclusion logic and vertical routing table
-- [ ] **Phase 4: Stage 4 Generate** - Anthropic Batch API generation with 8-key JSON output
-- [ ] **Phase 5: Stage 5+6 Lint + Assemble Bodies** - 18 lint checks, regeneration path, placeholder appending
-- [ ] **Phase 6: Stage 7 Write-back + Notifications** - HubSpot write-back, Teams notifications, run summary
-- [ ] **Phase 7: GitHub Actions Wiring + Pilot** - Two-job workflow, dry-run, 20-contact live pilot
+**Requirements:** SCAF-01–05
 
-## Phase Details
+**Success Criteria:**
+1. `scripts/utils.py` copied from Inbound unchanged with all retry/DLQ helpers present
+2. `requirements.txt` lists all five dependencies with minimum versions
+3. `config/vertical_routing.py` returns correct (case_study, email3_url, email4_url) tuple for at least 6 industry test strings across different table rows
+4. `config/close_bank.py` returns correct option for all four assignment rule branches (C-suite → 4, heavy contact → 3, strong match → 5, default → 1/2 rotation)
+5. `config/system_prompt.py` contains verbatim system prompt with v1.1 OUTPUT block appended; no paraphrasing
 
-### Phase 1: Data Foundation
-**Goal**: The pipeline's core data model, HubSpot client, and rate limiter exist and are smoke-tested against HubSpot
-**Depends on**: Nothing (first phase)
-**Requirements**: ASSM-09, INFRA-04, INFRA-05
-**Success Criteria** (what must be TRUE):
-  1. `pipeline/` package structure exists with all stage module stubs importable from `run.py`
-  2. HubSpot client fetches a single contact record from the live portal without authentication errors
-  3. Rate limiter enforces the 100 req/10s general limit and the 4 req/s CRM Search limit without hitting a 429 on a 20-request burst test
-  4. GitHub Secrets (`HUBSPOT_TOKEN`, `ANTHROPIC_API_KEY`, `TEAMS_WEBHOOK_URL`) are configured and the HubSpot client initializes from the secret without error
-**Plans**: TBD
+---
 
-### Phase 2: Stage 1 Assemble
-**Goal**: For each contact ID, the pipeline produces a complete, spec-compliant plain-text research brief ready for generation
-**Depends on**: Phase 1
-**Requirements**: ASSM-01, ASSM-02, ASSM-03, ASSM-04, ASSM-05, ASSM-06, ASSM-07, ASSM-08
-**Success Criteria** (what must be TRUE):
-  1. Running Stage 1 against 3-5 real Lane A contact IDs produces a brief file per contact with all §3.7 sections populated
-  2. The handover name field resolves to the correct previous rep first name (or marks owner as active) for each test contact
-  3. Bot-noise notes (job-ad alerts, enrichment notifications) are absent from the assembled brief; INTERNAL-tagged content appears in the brief with the INTERNAL label
-  4. Junk deals (names starting with "(Test)", "(delete)", or containing "test" as a standalone token) are excluded from the deal list
-  5. JP reviews the 3-5 assembled briefs and confirms they match spec §3 intent before Phase 3 begins
-**Plans**: TBD
+### Phase 2: Record Assembly
 
-### Phase 3: Stages 2+3 Filter + Route
-**Goal**: Every contact is either passed to generation with a routing assignment or written to the exclusion report with a filter code and reason
-**Depends on**: Phase 2
-**Requirements**: FILT-01, FILT-02, ROUT-01
-**Success Criteria** (what must be TRUE):
-  1. Running Stages 2+3 against a mixed test set produces an exclusion report listing all excluded contacts with their E1-E6 filter code and plain-English reason
-  2. Each passing contact carries a `case_study_name`, `email_3_url`, and `email_4_url` resolved from the routing table (or the no-match fallback values)
-  3. The exclusion report is formatted and ready for Teams posting; no excluded contact proceeds to Stage 4
-**Plans**: TBD
+**Goal:** `scripts/fetch_record.py` fetches and assembles the full per-contact research package: company record, all company contacts, company deals (filtered), notes (bot-noise filtered + signals parsed), handover name (via engagement API), geo resolution, and contact departure check. Writes `contact_{id}.json`.
+**Mode:** mvp
 
-### Phase 4: Stage 4 Generate
-**Goal**: The pipeline submits all passing contacts to Anthropic Batch API and retrieves validated 8-key JSON output for each contact
-**Depends on**: Phase 3
-**Requirements**: GEN-01, GEN-02, GEN-03, GEN-04, GEN-05, GEN-06, GEN-07, GEN-08
-**Success Criteria** (what must be TRUE):
-  1. A batch submitted for 5 test contacts returns `processing_status == "ended"` and all 5 results are matched by `custom_id` with no unmatched or silently dropped results
-  2. Each result parses as valid 8-key JSON (e1-e5 with subject+body, call1 body, call2 body, pin body) per the Pydantic schema
-  3. The batch ID is written as a GitHub Actions artifact before the polling loop begins; a simulated job timeout does not lose the batch ID
-  4. The system prompt uses `{type: ephemeral, ttl: 1h}` cache control; per-contact token usage is accumulated and a dollar-cost estimate is calculated for the run
-  5. Hard batch errors (`invalid_request_error`) and soft errors (server errors) are routed to separate output files, not silently ignored
-**Plans**: TBD
+**Requirements:** FETCH-01–11
 
-### Phase 5: Stage 5+6 Lint + Assemble Bodies
-**Goal**: Every generated contact output passes all 18 lint checks (or is flagged for review), and assembled bodies contain no un-substituted placeholder brackets
-**Depends on**: Phase 4
-**Requirements**: LINT-01, LINT-02, LINT-03, LINT-04, LINT-05, BODY-01, BODY-02, BODY-03
-**Success Criteria** (what must be TRUE):
-  1. Deliberately injecting each of the 18 hard-failure patterns into a test output triggers the correct lint check and routes the contact to regeneration (one attempt) then to the review file on second failure
-  2. Soft-warning contacts are added to the review file without blocking write-back
-  3. The idempotency guard skips write-back for any contact where `email_1_subject` is already non-empty, unless `--force-regenerate` is passed
-  4. Case study and booking link placeholders appear correctly in e2 and e5 bodies; any body containing a literal `[` character is rejected before reaching Stage 7
-  5. Token usage (input, output, cache read, cache write) is accumulated per contact across the batch and a total run cost estimate is available in the run log
-**Plans**: TBD
+**Success Criteria:**
+1. Running against a real contact writes `contact_{id}.json` containing: `contact_props`, `company_props`, `all_company_contacts` (with `num_contacted_notes`), `deals` (junk filtered), `story_notes` (bot-noise removed), `live_hiring_signals`, `handover` (first name, last contact date, method, `is_active`), `geo` (AU/NZ/US/UK or error), `is_only_contact` (bool), `sensitive_items` (list)
+2. Bot-noise filter correctly drops job-ad alert notes; live hiring signals list is populated from those same notes
+3. Handover resolution correctly picks the later of most-recent CALL vs most-recent outbound EMAIL; falls back gracefully if neither exists
+4. Geo resolution returns AU for an Australian phone/country, and flags an unresolved record rather than guessing
+5. Contact departure check flags a record whose notes contain "has left" against the contact's name
 
-### Phase 6: Stage 7 Write-back + Notifications
-**Goal**: All passing contacts are written to HubSpot with correct property types and all four Teams notifications are delivered at the right pipeline stages
-**Depends on**: Phase 5
-**Requirements**: WB-01, WB-02, WB-03, WB-04, WB-05, WB-06, REV-01, REV-02, REV-03, REV-04, REV-05
-**Success Criteria** (what must be TRUE):
-  1. The preflight check detects any email property that is `fieldType: text` (not `textarea`) and halts the pipeline with an actionable error before any write occurs
-  2. Running against 3 sandbox contacts writes all 10 email properties, both call task note properties, and the pin note property; a read-back confirms values are non-empty and newlines are preserved
-  3. The exclusion report Teams notification is sent and received in the correct Teams channel before generation begins; JP can read all E1-E6 contacts with their filter codes
-  4. The post-generation review file (every 10th contact + soft-warning contacts) is sent to Teams; the run cost summary and failed contacts list are sent at run end
-  5. Contacts that error in any stage are written to `failed_contacts.json` as a GitHub Actions artifact
-**Plans**: TBD
-**UI hint**: no
+---
 
-### Phase 7: GitHub Actions Wiring + Pilot
-**Goal**: The complete pipeline runs end-to-end from a HubSpot workflow_dispatch trigger through to HubSpot write-back, verified on a 20-contact live pilot
-**Depends on**: Phase 6
-**Requirements**: INFRA-01, INFRA-02, INFRA-03
-**Success Criteria** (what must be TRUE):
-  1. Triggering the workflow with a 20-contact JSON payload from HubSpot fires both the `prepare` and `complete` jobs in sequence; the batch ID artifact is visible in the Actions run
-  2. Dry-run mode completes the full 20-contact run (Stages 1-5) without writing to HubSpot; the operator can inspect all generated and linted output
-  3. Live pilot run writes all 20 contacts to HubSpot; a manual spot-check of 3 contacts confirms email properties, call note properties, and pin note are populated correctly with no stripped newlines
-  4. The GITHUB_STEP_SUMMARY displays contacts processed / excluded / failed / written counts; all four Teams notifications arrive in the correct channel
-  5. The `workflow_dispatch` payload size for 20 contacts is logged; if the 1,024-char per-input limit would be hit at 422 contacts, the operator is notified and `repository_dispatch` is evaluated as a fallback
-**Plans**: TBD
+### Phase 3: Exclusion & Routing
 
-## Progress
+**Goal:** `scripts/exclude_and_route.py` reads each `contact_{id}.json`, applies the six exclusion filters, routes passing contacts through the vertical table and close bank assignment, and assembles the final §3.7 brief. Writes `brief_{id}.json` for passing contacts and `exclusion_report.json` for all excluded/held contacts.
+**Mode:** mvp
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
+**Requirements:** EXCL-01–07, ROUTE-01–05
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Data Foundation | 0/TBD | Not started | - |
-| 2. Stage 1 Assemble | 0/TBD | Not started | - |
-| 3. Stages 2+3 Filter + Route | 0/TBD | Not started | - |
-| 4. Stage 4 Generate | 0/TBD | Not started | - |
-| 5. Stage 5+6 Lint + Assemble Bodies | 0/TBD | Not started | - |
-| 6. Stage 7 Write-back + Notifications | 0/TBD | Not started | - |
-| 7. GitHub Actions Wiring + Pilot | 0/TBD | Not started | - |
+**Success Criteria:**
+1. All six exclusion filters (E1–E6) implemented; each excluded contact lands in `exclusion_report.json` with its ID, filter code, and a human-readable reason
+2. `exclusion_report.json` written for every run (even if empty); never silent discard
+3. Brief assembled in exact §3.7 field order; no-deal branch produces the correct brief text; only-contact branch omits colleague lines
+4. Vertical routing returns correct case study name and URLs for at least 4 industry test inputs; falls back to default row on empty industry
+5. Close bank assignment respects all four override rules; `brief_{id}.json` carries the assigned close option number
+
+---
+
+### Phase 4: Generation
+
+**Goal:** `scripts/generate_campaign.py` reads `brief_{id}.json`, builds the user message, calls `claude-sonnet-5` with the cached system prompt, parses the 8-key response, and writes `generated_{id}.json`. Supports realtime API for iteration and Batch API for full runs.
+**Mode:** mvp
+
+**Requirements:** GEN-01–07
+
+**Success Criteria:**
+1. System prompt sent with `cache_control: {type: "ephemeral"}`; model is `claude-sonnet-5`; `max_tokens=3000`
+2. Response parsed against 8-key schema (`e1`–`e5` each with `subject`/`body`; `call1`, `call2`, `pin` each with `body`)
+3. `stop_reason == "max_tokens"` raises a named error; JSON parse failure saves raw response to RUNNER_TEMP before raising
+4. Batch API mode wired and toggled via `INPUT_USE_BATCH_API=true`; realtime is the default
+
+---
+
+### Phase 5: Lint & Body Assembly
+
+**Goal:** `scripts/lint.py` applies all 18 hard checks and 5 soft warnings from the spec. Hard failures trigger one regeneration attempt then flag. Soft warnings accumulate into `review_sample.json`. Every 10th output also dumped to the review file. `scripts/assemble_bodies.py` appends link placeholders to E2 and E5.
+**Mode:** mvp
+
+**Requirements:** LINT-01–05, ASSEM-01–03
+
+**Success Criteria:**
+1. All 12 hard checks from v1.0 implemented; test vector with a known em-dash failure and a known banned-word failure each triggers regeneration
+2. All 6 hard checks from v1.1 implemented; a call note missing the HISTORY label fails check 14; a call1 IF VOICEMAIL line with "catch up" fails check 15
+3. Soft warnings accumulate; a soft-warning contact lands in `review_sample.json`; every 10th passing contact also lands there
+4. E2 body ends with `[Insert {case study name} case study link here]` on its own line after the sign-off; E5 ends with `[Insert rep booking link here]`
+5. E1 body has zero URLs; E3/E4 each have exactly one URL (the inline URL from the routing table), present mid-body with a lead-in sentence
+
+---
+
+### Phase 6: Write-back
+
+**Goal:** `scripts/write_hubspot.py` writes 10 email properties, creates 2 call tasks, creates and pins 1 contact note per contact. Includes property-type pre-check, sender binding, and bracket guard.
+**Mode:** mvp
+
+**Requirements:** WRITE-01–07, ERR-01–02
+
+**Success Criteria:**
+1. On first run, script checks all 10 properties exist as multi-line text type; aborts with clear error if any is wrong type
+2. Bracket guard scans all 10 property values before write; raises error if `[` found (means assemble_bodies step failed or a placeholder leaked)
+3. Two CALL tasks created per contact with correct subjects (`touch 3 of 7` / `touch 6 of 7`), assigned to current `hubspot_owner_id`, with recipient-local due times
+4. Note created and pinned (or logged to manual-pin list if API doesn't support pinning); pin body matches generated output
+5. Paragraph breaks (`\n\n`) verified rendering in HubSpot sequence editor on at least 2 test records before full run (checklist item, not automated)
+6. DLQ sentinel written at startup; updated with error + retry_count on any failure
+
+---
+
+### Phase 7: CI/CD
+
+**Goal:** `.github/workflows/campaign.yml` orchestrates the full pipeline list-driven, with pilot mode cap, artifact uploads for exclusion report + review sample + full output, and Teams notification on failure.
+**Mode:** mvp
+
+**Requirements:** CI-01–06, ERR-03–04
+
+**Success Criteria:**
+1. `workflow_dispatch` inputs: `list_id` (required string), `pilot_mode` (boolean, default `true`)
+2. Pilot mode: if `pilot_mode=true` and contacts > 20, workflow processes only first 20 and prints a warning line
+3. `exclusion_report.json` uploaded as artifact on every run (success and failure); `review_sample.json` uploaded on every run
+4. `campaign_output.json` uploaded as artifact on success with 7-day retention
+5. On failure: `failed_contacts.json` uploaded AND Teams webhook POSTed with list_id, failed step, error excerpt, and run URL

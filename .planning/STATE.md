@@ -9,14 +9,14 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 1: Not started**
-Status: Planning complete — ready for `/gsd-plan-phase 1`
+**Phase 1: Ready to execute**
+Status: 3 plans in 1 wave — run `/gsd-execute-phase 1`
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 1 | Not started | Scaffolding |
+| 1 | Planned | 3 plans (01-01, 01-02, 01-03), all Wave 1 |
 | 2 | Not started | Record Assembly |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |

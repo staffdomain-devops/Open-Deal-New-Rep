@@ -13,12 +13,12 @@
 ### Data Fetch & Record Assembly (Stage 1)
 
 - [x] **FETCH-01**: `scripts/fetch_list.py` accepts `INPUT_LIST_ID` env var; fetches all contact IDs on the HubSpot list via the Lists API — completed 02-01 (commit 1c85ba3)
-- [ ] **FETCH-02**: For each contact, fetch contact properties: `firstname`, `lastname`, `jobtitle`, `company`, `industry`, `hubspot_owner_id`, `email`, `hs_email_optout`, `num_contacted_notes`, `notes_last_contacted`, `country`, `phone`
-- [ ] **FETCH-03**: Fetch associated company; fetch company properties: `name`, `industry`, `country`
-- [ ] **FETCH-04**: Fetch all contacts associated with that company; for each capture `firstname`, `lastname`, `jobtitle`, `num_contacted_notes`, `notes_last_contacted`
-- [ ] **FETCH-05**: Fetch all deals associated with the company; capture `dealname`, `dealstage`, `createdate`, `closedate`; filter junk deals (`(Test)`, `(delete)`, standalone `test`)
-- [ ] **FETCH-06**: Fetch notes on the contact and 1–2 key colleagues; apply bot-noise filter (discard notes whose body starts with or contains within first 80 chars: job-ad alert prefixes from spec §3.3); parse job-ad notes separately into live hiring signals
-- [ ] **FETCH-07**: Resolve handover name — fetch all CALL engagements (most recent by `hs_timestamp`) and all outbound EMAIL engagements (`hs_email_direction == EMAIL`) for the contact; take later of the two; resolve owner ID to name + `isActive` via owners API
+- [x] **FETCH-02**: For each contact, fetch contact properties: `firstname`, `lastname`, `jobtitle`, `company`, `industry`, `hubspot_owner_id`, `email`, `hs_email_optout`, `num_contacted_notes`, `notes_last_contacted`, `country`, `phone` — completed 02-02 (commit 01dae1b)
+- [x] **FETCH-03**: Fetch associated company; fetch company properties: `name`, `industry`, `country` — completed 02-02 (commit 01dae1b)
+- [x] **FETCH-04**: Fetch all contacts associated with that company; for each capture `firstname`, `lastname`, `jobtitle`, `num_contacted_notes`, `notes_last_contacted` — completed 02-02 (commit 01dae1b)
+- [x] **FETCH-05**: Fetch all deals associated with the company; capture `dealname`, `dealstage`, `createdate`, `closedate`; filter junk deals (`(Test)`, `(delete)`, standalone `test`) — completed 02-02 (commit 01dae1b)
+- [x] **FETCH-06**: Fetch notes on the contact and 1–2 key colleagues; apply bot-noise filter (discard notes whose body starts with or contains within first 80 chars: job-ad alert prefixes from spec §3.3); parse job-ad notes separately into live hiring signals — completed 02-02 (commit 01dae1b)
+- [x] **FETCH-07**: Resolve handover name — fetch all CALL engagements (most recent by `hs_timestamp`) and all outbound EMAIL engagements (`hs_email_direction == EMAIL`) for the contact; take later of the two; resolve owner ID to name + `isActive` via owners API — completed 02-02 (commit 01dae1b)
 - [ ] **FETCH-08**: Geo resolution — resolve company country to AU / NZ / US / UK via resolution ladder (spec §3.6 / Lane B v2.1 §3.6); flag unresolved as data-error hold
 - [ ] **FETCH-09**: Contact departure check — scan retained notes for "has left" / "no longer with" / "moved on from" against the contact's own name; flag hits for JP review (spec v1.1 checklist item 17)
 - [ ] **FETCH-10**: Mark whether the recipient is the only contacted person on the company (brief must say so if true)

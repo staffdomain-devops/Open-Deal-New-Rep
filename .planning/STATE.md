@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 — 02-01 complete, 02-02 next
-last_updated: "2026-08-21T06:31:42.000Z"
+stopped_at: Phase 2 — 02-02 complete, 02-03 next
+last_updated: "2026-08-21T06:38:00Z"
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 19
+  completed_plans: 5
+  percent: 38
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -25,14 +25,14 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 ## Current Phase
 
 **Phase 2: Record Assembly — In progress**
-Status: 1/3 plans complete (02-01 done); 02-02 and 02-03 remaining
+Status: 2/3 plans complete (02-01, 02-02 done); 02-03 remaining
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
-| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 (fetch_record.py core), 02-03 (geo/departure/assembly) remaining |
+| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 (geo/departure/assembly) remaining |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
@@ -62,15 +62,19 @@ Status: 1/3 plans complete (02-01 done); 02-02 and 02-03 remaining
 | 2026-08-21 | SYSTEM_PROMPT as module-level constant, get_system_prompt() as trivial accessor | No logic in config/system_prompt.py; Phase 4 imports and passes with cache_control ephemeral |
 | 2026-08-21 | Cursor-based pagination for fetch_list.py | HubSpot Lists API v3 provides native after cursor; full list built in memory before single json.dump |
 | 2026-08-21 | DLQ sentinel written at startup in fetch_list.py | Guarantees crash trace even if script dies before try/except (satisfies ERR-02) |
+| 2026-08-21 | _fetch_engagements_paged extracted as shared helper | Both fetch_notes and fetch_handover use v1 paged endpoint; shared helper avoids retry/pagination divergence |
+| 2026-08-21 | _id stored on colleague dicts | fetch_notes needs HubSpot contact ID of each colleague for v1 endpoint calls; added to fetch_all_company_contacts output |
+| 2026-08-21 | fetch_company returns ("", {}) on no association | All downstream functions guard on empty string for consistency |
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 02 | 01 | 3 min | 1 | 1 |
+| 02 | 02 | 3 min | 2 | 1 |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T06:31:42Z
-- **Stopped at:** Phase 2 — 02-01 complete (fetch_list.py committed at 1c85ba3)
-- **Resume file:** .planning/phases/02-record-assembly/02-02-PLAN.md
+- **Timestamp:** 2026-08-21T06:38:00Z
+- **Stopped at:** Phase 2 — 02-02 complete (fetch_record.py skeleton + 6 fetch functions, commit 01dae1b)
+- **Resume file:** .planning/phases/02-record-assembly/02-03-PLAN.md

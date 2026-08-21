@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 — 02-02 complete, 02-03 next
-last_updated: "2026-08-21T06:38:00Z"
+stopped_at: Phase 2 — 02-03 Task 1 complete (geo/departure/assembly), awaiting human-verify checkpoint
+last_updated: "2026-08-21T06:43:00Z"
 progress:
   total_phases: 7
   completed_phases: 1
@@ -25,14 +25,14 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 ## Current Phase
 
 **Phase 2: Record Assembly — In progress**
-Status: 2/3 plans complete (02-01, 02-02 done); 02-03 remaining
+Status: 02-01, 02-02 done; 02-03 Task 1 complete (awaiting human-verify checkpoint for real-run confirmation)
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
-| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 (geo/departure/assembly) remaining |
+| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 Task 1 complete (resolve_geo, check_departure, is_only_contact_check, D-13 assembly); checkpoint pending |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
@@ -65,6 +65,9 @@ Status: 2/3 plans complete (02-01, 02-02 done); 02-03 remaining
 | 2026-08-21 | _fetch_engagements_paged extracted as shared helper | Both fetch_notes and fetch_handover use v1 paged endpoint; shared helper avoids retry/pagination divergence |
 | 2026-08-21 | _id stored on colleague dicts | fetch_notes needs HubSpot contact ID of each colleague for v1 endpoint calls; added to fetch_all_company_contacts output |
 | 2026-08-21 | fetch_company returns ("", {}) on no association | All downstream functions guard on empty string for consistency |
+| 2026-08-21 | resolve_geo returns "UNRESOLVED" string (not null) | Phase 3 exclusion filter can match on exact value without null checks |
+| 2026-08-21 | is_only_contact fallback: empty all_company_contacts → True | Conservative overstatement; Phase 3 brief says "only contact" which is safe |
+| 2026-08-21 | json.dump uses default=str for non-serialisable types | Handles HubSpot SDK datetime objects; no partial write on failure (D-15) |
 
 ## Performance Metrics
 
@@ -72,9 +75,10 @@ Status: 2/3 plans complete (02-01, 02-02 done); 02-03 remaining
 |-------|------|----------|-------|-------|
 | 02 | 01 | 3 min | 1 | 1 |
 | 02 | 02 | 3 min | 2 | 1 |
+| 02 | 03 | 2 min | 1 | 1 |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T06:38:00Z
-- **Stopped at:** Phase 2 — 02-02 complete (fetch_record.py skeleton + 6 fetch functions, commit 01dae1b)
-- **Resume file:** .planning/phases/02-record-assembly/02-03-PLAN.md
+- **Timestamp:** 2026-08-21T06:43:00Z
+- **Stopped at:** Phase 2 — 02-03 Task 1 complete (commit 0232564); checkpoint:human-verify requires HUBSPOT_API_KEY to run real contact test
+- **Resume file:** .planning/phases/02-record-assembly/02-03-PLAN.md (Task 2 checkpoint — provide HUBSPOT_API_KEY and a contact ID, then type "approved")

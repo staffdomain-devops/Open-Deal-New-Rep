@@ -19,10 +19,10 @@
 - [x] **FETCH-05**: Fetch all deals associated with the company; capture `dealname`, `dealstage`, `createdate`, `closedate`; filter junk deals (`(Test)`, `(delete)`, standalone `test`) — completed 02-02 (commit 01dae1b)
 - [x] **FETCH-06**: Fetch notes on the contact and 1–2 key colleagues; apply bot-noise filter (discard notes whose body starts with or contains within first 80 chars: job-ad alert prefixes from spec §3.3); parse job-ad notes separately into live hiring signals — completed 02-02 (commit 01dae1b)
 - [x] **FETCH-07**: Resolve handover name — fetch all CALL engagements (most recent by `hs_timestamp`) and all outbound EMAIL engagements (`hs_email_direction == EMAIL`) for the contact; take later of the two; resolve owner ID to name + `isActive` via owners API — completed 02-02 (commit 01dae1b)
-- [ ] **FETCH-08**: Geo resolution — resolve company country to AU / NZ / US / UK via resolution ladder (spec §3.6 / Lane B v2.1 §3.6); flag unresolved as data-error hold
-- [ ] **FETCH-09**: Contact departure check — scan retained notes for "has left" / "no longer with" / "moved on from" against the contact's own name; flag hits for JP review (spec v1.1 checklist item 17)
-- [ ] **FETCH-10**: Mark whether the recipient is the only contacted person on the company (brief must say so if true)
-- [ ] **FETCH-11**: Write per-contact assembled data to `$RUNNER_TEMP/contact_{id}.json`
+- [x] **FETCH-08**: Geo resolution — resolve company country to AU / NZ / US / UK via resolution ladder (spec §3.6 / Lane B v2.1 §3.6); flag unresolved as data-error hold
+- [x] **FETCH-09**: Contact departure check — scan retained notes for "has left" / "no longer with" / "moved on from" against the contact's own name; flag hits for JP review (spec v1.1 checklist item 17)
+- [x] **FETCH-10**: Mark whether the recipient is the only contacted person on the company (brief must say so if true)
+- [x] **FETCH-11**: Write per-contact assembled data to `$RUNNER_TEMP/contact_{id}.json`
 
 ### Exclusion Filters (Stage 2)
 

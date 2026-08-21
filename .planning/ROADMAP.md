@@ -5,7 +5,7 @@
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|-----------------|
 | 1 | Scaffolding | Project structure, shared utilities, routing/close/prompt configs | SCAF-01–05 | 5 |
-| 2 | Record Assembly | Full Stage 1 data fetch per contact: company, contacts, deals, notes, handover, geo | FETCH-01–11 | 5 |
+| 2 | Record Assembly | 3/3 | Complete   | 2026-08-21 |
 | 3 | Exclusion & Routing | Exclusion filters E1–E6, vertical routing, close bank, brief assembly | EXCL-01–07, ROUTE-01–05 | 5 |
 | 4 | Generation | Claude API call with cached system prompt, 8-deliverable output | GEN-01–07 | 4 |
 | 5 | Lint & Assembly | 18-check lint engine, soft warnings, review sample, link placeholder append | LINT-01–05, ASSEM-01–03 | 5 |
@@ -44,7 +44,7 @@ Plans:
 
 **Requirements:** FETCH-01–11
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -53,7 +53,7 @@ Plans:
 - [x] 02-02-PLAN.md — Implement fetch_record.py skeleton + six core fetch functions: contact, company, company contacts, deals, notes/signals/sensitive, handover (FETCH-02–07)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-03-PLAN.md — Add geo resolution, departure check, only-contact flag, and final D-13 JSON assembly to fetch_record.py (FETCH-08–11)
+- [x] 02-03-PLAN.md — Add geo resolution, departure check, only-contact flag, and final D-13 JSON assembly to fetch_record.py (FETCH-08–11)
 
 **Success Criteria:**
 1. Running against a real contact writes `contact_{id}.json` containing: `contact_props`, `company_props`, `all_company_contacts` (with `num_contacted_notes`), `deals` (junk filtered), `story_notes` (bot-noise removed), `live_hiring_signals`, `handover` (first name, last contact date, method, `is_active`), `geo` (AU/NZ/US/UK or error), `is_only_contact` (bool), `sensitive_items` (list)

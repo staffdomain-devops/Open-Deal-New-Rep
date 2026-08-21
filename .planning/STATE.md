@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-08-21T05:27:49.115Z"
+status: in_progress
+stopped_at: Phase 2 planned — ready to execute
+last_updated: "2026-08-21T00:00:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 3
+  total_plans: 6
   completed_plans: 3
-  percent: 100
+  percent: 14
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -20,19 +20,19 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 1 — Scaffolding
+**Current focus:** Phase 2 — Record Assembly
 
 ## Current Phase
 
-**Phase 1: Scaffolding — Complete**
-Status: Wave 1 complete — 3/3 plans complete (01-01, 01-02, 01-03 done)
+**Phase 2: Record Assembly — Ready to execute**
+Status: 3/3 plans written (02-01, 02-02, 02-03); verification passed
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
-| 2 | Not started | Record Assembly |
+| 2 | Planned | 02-01 (fetch_list.py), 02-02 (fetch_record.py core), 02-03 (geo/departure/assembly) |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
@@ -63,6 +63,6 @@ Status: Wave 1 complete — 3/3 plans complete (01-01, 01-02, 01-03 done)
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T02:00:00Z
-- **Stopped at:** Phase 2 context gathered
-- **Resume file:** .planning/phases/02-record-assembly/02-CONTEXT.md
+- **Timestamp:** 2026-08-21T00:00:00Z
+- **Stopped at:** Phase 2 planned — 3 plans ready for execution
+- **Resume file:** .planning/phases/02-record-assembly/02-01-PLAN.md

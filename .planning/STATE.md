@@ -10,13 +10,13 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 ## Current Phase
 
 **Phase 1: Scaffolding — Executing**
-Status: Wave 1 in progress — 1/3 plans complete (01-01 done)
+Status: Wave 1 in progress — 2/3 plans complete (01-01, 01-02 done)
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 1 | Executing | 01-01 complete; 01-02, 01-03 pending |
+| 1 | Executing | 01-01, 01-02 complete; 01-03 pending |
 | 2 | Not started | Record Assembly |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
@@ -42,9 +42,11 @@ Status: Wave 1 in progress — 1/3 plans complete (01-01 done)
 | 2026-08-21 | Call tasks created manually by rep | Pipeline writes call briefings to `task_note_1` + `task_note_2` contact properties; rep creates HubSpot tasks themselves |
 | 2026-08-21 | Version pins use >= specifier throughout | == rejected per SCAF-02; >= allows patch updates without pipeline changes |
 | 2026-08-21 | utils.py zero-divergence policy locked | Byte-for-byte copy confirmed by clean diff; no pipeline-specific modifications permitted |
+| 2026-08-21 | industry_match_strength not in VerticalRoute | Computed by assign_close() caller in Phase 3; route() returns only case_study + URLs |
+| 2026-08-21 | _close_counter as list[int] | Mutable single-element list enables rotation without `global` keyword; module-level state |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T01:27:16Z
-- **Stopped at:** Completed 01-01-PLAN.md (utils.py + requirements.txt)
-- **Resume file:** None — continue with 01-02-PLAN.md
+- **Timestamp:** 2026-08-21T01:34:00Z
+- **Stopped at:** Completed 01-02-PLAN.md (config/vertical_routing.py + config/close_bank.py)
+- **Resume file:** None — continue with 01-03-PLAN.md

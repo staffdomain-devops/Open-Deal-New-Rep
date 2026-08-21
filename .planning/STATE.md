@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 planned — ready to execute
-last_updated: "2026-08-21T00:00:00.000Z"
+stopped_at: Phase 2 — 02-01 complete, 02-02 next
+last_updated: "2026-08-21T06:31:42.000Z"
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
-  percent: 14
+  completed_plans: 4
+  percent: 19
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -24,15 +24,15 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 2: Record Assembly — Ready to execute**
-Status: 3/3 plans written (02-01, 02-02, 02-03); verification passed
+**Phase 2: Record Assembly — In progress**
+Status: 1/3 plans complete (02-01 done); 02-02 and 02-03 remaining
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
-| 2 | Planned | 02-01 (fetch_list.py), 02-02 (fetch_record.py core), 02-03 (geo/departure/assembly) |
+| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 (fetch_record.py core), 02-03 (geo/departure/assembly) remaining |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
@@ -60,9 +60,17 @@ Status: 3/3 plans written (02-01, 02-02, 02-03); verification passed
 | 2026-08-21 | industry_match_strength not in VerticalRoute | Computed by assign_close() caller in Phase 3; route() returns only case_study + URLs |
 | 2026-08-21 | _close_counter as list[int] | Mutable single-element list enables rotation without `global` keyword; module-level state |
 | 2026-08-21 | SYSTEM_PROMPT as module-level constant, get_system_prompt() as trivial accessor | No logic in config/system_prompt.py; Phase 4 imports and passes with cache_control ephemeral |
+| 2026-08-21 | Cursor-based pagination for fetch_list.py | HubSpot Lists API v3 provides native after cursor; full list built in memory before single json.dump |
+| 2026-08-21 | DLQ sentinel written at startup in fetch_list.py | Guarantees crash trace even if script dies before try/except (satisfies ERR-02) |
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 02 | 01 | 3 min | 1 | 1 |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T00:00:00Z
-- **Stopped at:** Phase 2 planned — 3 plans ready for execution
-- **Resume file:** .planning/phases/02-record-assembly/02-01-PLAN.md
+- **Timestamp:** 2026-08-21T06:31:42Z
+- **Stopped at:** Phase 2 — 02-01 complete (fetch_list.py committed at 1c85ba3)
+- **Resume file:** .planning/phases/02-record-assembly/02-02-PLAN.md

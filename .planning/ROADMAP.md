@@ -49,7 +49,7 @@ Plans:
 Plans:
 
 **Wave 1** *(02-01 and 02-02 run in parallel — different files)*
-- [ ] 02-01-PLAN.md — Implement fetch_list.py: paginated HubSpot list fetch, writes contact_ids.json (FETCH-01)
+- [x] 02-01-PLAN.md — Implement fetch_list.py: paginated HubSpot list fetch, writes contact_ids.json (FETCH-01)
 - [ ] 02-02-PLAN.md — Implement fetch_record.py skeleton + six core fetch functions: contact, company, company contacts, deals, notes/signals/sensitive, handover (FETCH-02–07)
 
 **Wave 2** *(blocked on Wave 1 completion)*

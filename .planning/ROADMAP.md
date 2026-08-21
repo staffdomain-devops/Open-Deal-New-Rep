@@ -9,7 +9,7 @@
 | 3 | Exclusion & Routing | Exclusion filters E1–E6, vertical routing, close bank, brief assembly | EXCL-01–07, ROUTE-01–05 | 5 |
 | 4 | Generation | Claude API call with cached system prompt, 8-deliverable output | GEN-01–07 | 4 |
 | 5 | Lint & Assembly | 18-check lint engine, soft warnings, review sample, link placeholder append | LINT-01–05, ASSEM-01–03 | 5 |
-| 6 | Write-back | 10 email properties, 2 call tasks, 1 pinned note, sender binding, bracket guard | WRITE-01–07, ERR-01–02 | 6 |
+| 6 | Write-back | 12 contact properties (10 email + 2 task notes), 1 pinned note, bracket guard | WRITE-01–05, ERR-01–02 | 5 |
 | 7 | CI/CD | GitHub Actions workflow, pilot mode, artifacts, failure handling | CI-01–06, ERR-03–04 | 5 |
 
 ---
@@ -95,18 +95,17 @@
 
 ### Phase 6: Write-back
 
-**Goal:** `scripts/write_hubspot.py` writes 10 email properties, creates 2 call tasks, creates and pins 1 contact note per contact. Includes property-type pre-check, sender binding, and bracket guard.
+**Goal:** `scripts/write_hubspot.py` writes 12 contact properties (10 email + `task_note_1` + `task_note_2`) and creates + pins 1 contact note per contact. Call tasks are created manually by the rep — the pipeline only provides the briefing text via the two task_note properties.
 **Mode:** mvp
 
-**Requirements:** WRITE-01–07, ERR-01–02
+**Requirements:** WRITE-01–05, ERR-01–02
 
 **Success Criteria:**
-1. On first run, script checks all 10 properties exist as multi-line text type; aborts with clear error if any is wrong type
-2. Bracket guard scans all 10 property values before write; raises error if `[` found (means assemble_bodies step failed or a placeholder leaked)
-3. Two CALL tasks created per contact with correct subjects (`touch 3 of 7` / `touch 6 of 7`), assigned to current `hubspot_owner_id`, with recipient-local due times
+1. On first run, script checks all 12 properties exist as multi-line text type; aborts with clear error if any is wrong type
+2. Bracket guard scans all 10 email property values before write; raises error if `[` found; task_note properties are internal-only and exempt
+3. `task_note_1` and `task_note_2` written with the generated call briefing text (plain text, preserving `\n` line structure from the generated output)
 4. Note created and pinned (or logged to manual-pin list if API doesn't support pinning); pin body matches generated output
-5. Paragraph breaks (`\n\n`) verified rendering in HubSpot sequence editor on at least 2 test records before full run (checklist item, not automated)
-6. DLQ sentinel written at startup; updated with error + retry_count on any failure
+5. DLQ sentinel written at startup; updated with error + retry_count on any failure
 
 ---
 

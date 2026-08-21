@@ -24,10 +24,9 @@ Every new account owner inherits a warm relationship they have never personally 
 - [ ] Generate 8 deliverables in one Sonnet call: 5 emails + 2 call notes + 1 pin note
 - [ ] Lint all 18 checks; regenerate once on hard fail; write soft-warning review file
 - [ ] Assemble final email bodies (append link placeholders to E2/E5)
-- [ ] Write 10 email properties (multi-line text) to HubSpot via batch update
-- [ ] Create 2 call task engagements per contact; create + pin 1 contact note
-- [ ] Pre-send bracket guard: no literal `[` placeholder may reach a contact property
-- [ ] Sender binding: tasks and pin assigned to current `hubspot_owner_id`
+- [ ] Write 12 contact properties to HubSpot: 10 email properties (multi-line text) + `task_note_1` + `task_note_2` (call briefing text for manual task creation by rep)
+- [ ] Create + pin 1 contact note per contact
+- [ ] Pre-send bracket guard: no literal `[` placeholder may reach an email property
 - [ ] GitHub Actions workflow: list-driven, pilot mode (20-record cap) + full run
 - [ ] Exclusion report and human-review sample dumped as workflow artifacts
 - [ ] Failure handling: DLQ + Teams/Slack notification
@@ -49,7 +48,7 @@ Architecture mirrors the Inbound pipeline (`C:\Users\irahfo\Outreach\Inbound\`) 
 | Trigger | Per-contact via Make.com | Batch via list ID |
 | Data assembly | Simple fetch + enrich | 7-step brief assembly (company contacts, deals, notes filter, handover resolution, exclusion, routing, brief format) |
 | Deliverables | 1 email | 8 (5 emails + 2 call notes + 1 pin) |
-| HubSpot write | 2 properties + 1 note | 10 properties + 2 task engagements + 1 pinned note |
+| HubSpot write | 2 properties + 1 note | 12 properties (`email_1_subject`…`email_5_body` + `task_note_1` + `task_note_2`) + 1 pinned note |
 | Lint | Basic (em-dash, JSON) | 18 checks (12 hard v1.0 + 6 hard v1.1) |
 | Model | `claude-sonnet-4-6` | `claude-sonnet-5` |
 | System prompt | Short inline | Long verbatim (cached, `cache_control: ephemeral`) |
@@ -79,6 +78,7 @@ Reuse `utils.py` from Inbound unchanged — same retry/DLQ patterns apply.
 | Batch API for full runs | ~500 contacts; 50% cost reduction; switch to realtime for iteration | — Pending |
 | Cached system prompt | Long verbatim prompt; 10% price for all contacts after first | — Pending |
 | HubSpot write-back uses `hs_object_id` match | Batch update API, 100 per batch; consistent with spec §8 | — Pending |
+| Call tasks created manually by rep; pipeline writes briefing to `task_note_1`/`task_note_2` | Simpler pipeline; rep controls task timing | Confirmed 2026-08-21 |
 | Note pinning via engagements API | Verify support at pilot; manual fallback if API doesn't support pinning | — Pending |
 
 ---

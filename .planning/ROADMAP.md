@@ -26,7 +26,7 @@
 Plans:
 - [x] 01-01-PLAN.md — Copy utils.py from Inbound + create requirements.txt (SCAF-01, SCAF-02)
 - [x] 01-02-PLAN.md — Implement vertical routing table + close bank (SCAF-03, SCAF-04)
-- [ ] 01-03-PLAN.md — Encode verbatim system prompt with v1.1 edits (SCAF-05)
+- [x] 01-03-PLAN.md — Encode verbatim system prompt with v1.1 edits (SCAF-05)
 
 **Success Criteria:**
 1. `scripts/utils.py` copied from Inbound unchanged with all retry/DLQ helpers present

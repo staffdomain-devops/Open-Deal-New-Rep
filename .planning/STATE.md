@@ -9,14 +9,14 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 1: Scaffolding — Executing**
-Status: Wave 1 in progress — 2/3 plans complete (01-01, 01-02 done)
+**Phase 1: Scaffolding — Complete**
+Status: Wave 1 complete — 3/3 plans complete (01-01, 01-02, 01-03 done)
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 1 | Executing | 01-01, 01-02 complete; 01-03 pending |
+| 1 | Complete | 01-01, 01-02, 01-03 all complete |
 | 2 | Not started | Record Assembly |
 | 3 | Not started | Exclusion & Routing |
 | 4 | Not started | Generation |
@@ -44,9 +44,10 @@ Status: Wave 1 in progress — 2/3 plans complete (01-01, 01-02 done)
 | 2026-08-21 | utils.py zero-divergence policy locked | Byte-for-byte copy confirmed by clean diff; no pipeline-specific modifications permitted |
 | 2026-08-21 | industry_match_strength not in VerticalRoute | Computed by assign_close() caller in Phase 3; route() returns only case_study + URLs |
 | 2026-08-21 | _close_counter as list[int] | Mutable single-element list enables rotation without `global` keyword; module-level state |
+| 2026-08-21 | SYSTEM_PROMPT as module-level constant, get_system_prompt() as trivial accessor | No logic in config/system_prompt.py; Phase 4 imports and passes with cache_control ephemeral |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T01:34:00Z
-- **Stopped at:** Completed 01-02-PLAN.md (config/vertical_routing.py + config/close_bank.py)
-- **Resume file:** None — continue with 01-03-PLAN.md
+- **Timestamp:** 2026-08-21T02:00:00Z
+- **Stopped at:** Completed 01-03-PLAN.md (config/system_prompt.py — verbatim v1.0+v1.1 system prompt)
+- **Resume file:** None — Phase 1 complete; advance to Phase 2 (Record Assembly)

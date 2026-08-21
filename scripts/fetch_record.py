@@ -3,8 +3,7 @@
 Usage:
     python scripts/fetch_record.py <contact_id>
 
-Writes nothing to disk (that is Plan 02-03). Fetches and assembles all HubSpot data
-for a single contact, storing results in local variables within main().
+Writes $RUNNER_TEMP/contact_{id}.json with all 11 D-13 fields assembled from HubSpot.
 """
 
 import json
@@ -425,6 +424,111 @@ def fetch_handover(contact_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Resolution functions (added in Plan 02-03)
+# ---------------------------------------------------------------------------
+
+
+def resolve_geo(company_props: dict, contact_props: dict) -> str:
+    """Resolve the geographic market for this contact using a 3-step ladder (D-06).
+
+    Step 1: Match company.country string (case-insensitive).
+    Step 2: Match contact.phone prefix (after stripping spaces and dashes).
+    Step 3: Return "UNRESOLVED" and log a warning to stderr.
+
+    Always returns a non-empty string — never raises.
+    """
+    # Step 1 — company country string match
+    country = (company_props.get("country") or "").strip().lower()
+    AU_COUNTRIES = {"australia", "au"}
+    NZ_COUNTRIES = {"new zealand", "nz"}
+    US_COUNTRIES = {"united states", "us", "usa", "united states of america"}
+    UK_COUNTRIES = {"united kingdom", "uk", "gb", "great britain"}
+
+    if country in AU_COUNTRIES:
+        return "AU"
+    if country in NZ_COUNTRIES:
+        return "NZ"
+    if country in US_COUNTRIES:
+        return "US"
+    if country in UK_COUNTRIES:
+        return "UK"
+
+    # Step 2 — phone prefix (strip spaces and dashes first)
+    phone = (contact_props.get("phone") or "").replace(" ", "").replace("-", "")
+    if phone.startswith("+61"):
+        return "AU"
+    if phone.startswith("+64"):
+        return "NZ"
+    if phone.startswith("+1"):
+        return "US"
+    if phone.startswith("+44"):
+        return "UK"
+
+    # Step 3 — unresolved; Phase 3 holds these records
+    print(
+        f"GEO UNRESOLVED for contact {contact_props.get('email', '?')}",
+        file=sys.stderr,
+    )
+    return "UNRESOLVED"
+
+
+def check_departure(story_notes: list, contact_props: dict) -> bool:
+    """Return True if any story note suggests the contact has left their company (D-14).
+
+    Searches for "has left", "no longer with", "moved on from" within 30 chars of the
+    contact's first or last name (case-insensitive). Returns False if both names are
+    empty (cannot perform meaningful check).
+    """
+    firstname = (contact_props.get("firstname") or "").strip()
+    lastname = (contact_props.get("lastname") or "").strip()
+
+    if not firstname and not lastname:
+        return False
+
+    name_pattern = "|".join(
+        filter(None, [re.escape(firstname), re.escape(lastname)])
+    )
+
+    departure_phrases = ["has left", "no longer with", "moved on from"]
+
+    for body in story_notes:
+        if not body:
+            continue
+        for phrase in departure_phrases:
+            pattern = (
+                rf"(?i)(?:{name_pattern}).{{0,30}}(?:{re.escape(phrase)})"
+                rf"|(?:{re.escape(phrase)}).{{0,30}}(?:{name_pattern})"
+            )
+            if re.search(pattern, body):
+                return True
+
+    return False
+
+
+def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bool:
+    """Return True if the contact is the sole person with num_contacted_notes >= 1 (FETCH-10).
+
+    Fallback: if all_company_contacts is empty, return True (conservative — Phase 3
+    brief will say "only contact", which is a safe overstatement per D-14).
+    """
+    contacted = [
+        c for c in all_company_contacts
+        if int(c.get("num_contacted_notes") or 0) >= 1
+    ]
+
+    if len(contacted) == 0:
+        return True  # fallback: no association data returned
+
+    if len(contacted) == 1:
+        c = contacted[0]
+        same_first = (c.get("firstname") or "").lower() == (contact_props.get("firstname") or "").lower()
+        same_last = (c.get("lastname") or "").lower() == (contact_props.get("lastname") or "").lower()
+        return same_first and same_last
+
+    return False  # multiple contacted people → not the only contact
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -460,10 +564,37 @@ def main():
         failed_step = "fetch_handover"
         handover = fetch_handover(contact_id)
 
-        # Geo resolution, departure check, only-contact flag, and JSON assembly
-        # are handled by Plan 02-03.
-        print(f"contact {contact_id} fetch OK — {len(story_notes)} story notes, "
-              f"{len(deals)} deals, handover={'yes' if handover else 'none'}")
+        # Resolution functions (Plan 02-03)
+        failed_step = "resolve_geo"
+        geo = resolve_geo(company_props, contact_props)
+
+        failed_step = "check_departure"
+        departure_flagged = check_departure(story_notes, contact_props)
+
+        failed_step = "is_only_contact"
+        is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
+
+        # Assemble the D-13 record (all 11 keys, in spec order)
+        record = {
+            "contact_props": contact_props,
+            "company_props": company_props,
+            "all_company_contacts": all_company_contacts,
+            "deals": deals,
+            "story_notes": story_notes,
+            "live_hiring_signals": live_hiring_signals,
+            "handover": handover,
+            "geo": geo,
+            "is_only_contact": is_only_contact,
+            "sensitive_items": sensitive_items,
+            "departure_flagged": departure_flagged,
+        }
+
+        # Write output — only reached if all fetch + resolution calls succeeded (D-15, T-02-10)
+        out_path = os.path.join(RUNNER_TEMP, f"contact_{contact_id}.json")
+        failed_step = "write_output"
+        with open(out_path, "w") as f:
+            json.dump(record, f, indent=2, default=str)
+        print(f"Written {out_path}")
 
     except Exception as e:
         write_dlq(contact_id, "", failed_step, str(e), 0)

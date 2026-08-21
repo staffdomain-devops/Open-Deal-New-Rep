@@ -4,8 +4,8 @@
 
 ### Scaffolding
 
-- [ ] **SCAF-01**: `scripts/utils.py` copied from Inbound project unchanged (write_dlq, retry helpers, safe_truncate)
-- [ ] **SCAF-02**: `requirements.txt` lists five dependencies with minimum version constraints (`hubspot-api-client>=12.0.0`, `requests>=2.31.0`, `beautifulsoup4>=4.12.0`, `anthropic>=0.30.0`, `tenacity>=9.0.0`)
+- [x] **SCAF-01**: `scripts/utils.py` copied from Inbound project unchanged (write_dlq, retry helpers, safe_truncate) — completed 01-01 (commit 7982692)
+- [x] **SCAF-02**: `requirements.txt` lists five dependencies with minimum version constraints (`hubspot-api-client>=12.0.0`, `requests>=2.31.0`, `beautifulsoup4>=4.12.0`, `anthropic>=0.30.0`, `tenacity>=9.0.0`) — completed 01-01 (commit 096f2f2)
 - [ ] **SCAF-03**: `config/vertical_routing.py` implements 14-row vertical routing table (spec §4) — substring match, case-insensitive, first hit wins
 - [ ] **SCAF-04**: `config/close_bank.py` implements 5-option close bank with assignment logic (spec §5.3): option 3 for ≥30 touches, option 4 for C-suite, option 5 for strong case-study match, else rotate 1→2→1→2
 - [ ] **SCAF-05**: `config/system_prompt.py` holds the verbatim system prompt from spec §5.2 (v1.0 + v1.1 amendments) and the v1.1 OUTPUT block appended instruction

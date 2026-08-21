@@ -44,6 +44,13 @@ Plans:
 
 **Requirements:** FETCH-01–11
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Implement fetch_list.py: paginated HubSpot list fetch, writes contact_ids.json (FETCH-01)
+- [ ] 02-02-PLAN.md — Implement fetch_record.py skeleton + six core fetch functions: contact, company, company contacts, deals, notes/signals/sensitive, handover (FETCH-02–07)
+- [ ] 02-03-PLAN.md — Add geo resolution, departure check, only-contact flag, and final D-13 JSON assembly to fetch_record.py (FETCH-08–11)
+
 **Success Criteria:**
 1. Running against a real contact writes `contact_{id}.json` containing: `contact_props`, `company_props`, `all_company_contacts` (with `num_contacted_notes`), `deals` (junk filtered), `story_notes` (bot-noise removed), `live_hiring_signals`, `handover` (first name, last contact date, method, `is_active`), `geo` (AU/NZ/US/UK or error), `is_only_contact` (bool), `sensitive_items` (list)
 2. Bot-noise filter correctly drops job-ad alert notes; live hiring signals list is populated from those same notes

@@ -4,25 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       list_id:
-        description: HubSpot list ID to process
+        description: "HubSpot list ID to process"
         required: true
         type: string
       pilot_mode:
-        description: Cap processing at 20 contacts
+        description: "Cap processing at 20 contacts"
         required: false
         type: boolean
         default: true
 
-env:
-  INPUT_LIST_ID: ${{ github.event.inputs.list_id }}
-  INPUT_USE_BATCH_API: "false"
-  HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
 jobs:
   run:
     runs-on: ubuntu-latest
+    env:
+      INPUT_LIST_ID: "${{ github.event.inputs.list_id }}"
+      INPUT_USE_BATCH_API: "false"
+      HUBSPOT_API_KEY: "${{ secrets.HUBSPOT_API_KEY }}"
+      ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"
+      TEAMS_WEBHOOK_URL: "${{ secrets.TEAMS_WEBHOOK_URL }}"
+      PILOT_MODE: "${{ github.event.inputs.pilot_mode }}"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,24 +41,8 @@ jobs:
         run: python fetch_list.py
 
       - name: pilot-mode-cap
-        env:
-          PILOT_MODE: ${{ github.event.inputs.pilot_mode }}
-        run: |
-          python -c "
-          import json, os, sys
-          runner_temp = os.environ.get('RUNNER_TEMP', '.')
-          ids_path = os.path.join(runner_temp, 'contact_ids.json')
-          with open(ids_path) as f:
-              ids = json.load(f)
-          original = len(ids)
-          pilot = os.environ.get('PILOT_MODE', 'true').lower()
-          if pilot == 'true' and original > 20:
-              ids = ids[:20]
-              print(f'PILOT MODE: capping {original} contacts to 20')
-              with open(ids_path, 'w') as f:
-                  json.dump(ids, f)
-          print(f'Processing {len(ids)} contacts')
-          "
+        working-directory: scripts
+        run: python pilot_cap.py
 
       - name: fetch-records
         working-directory: scripts
@@ -92,7 +77,7 @@ jobs:
         if: always()
         with:
           name: exclusion-report
-          path: ${{ runner.temp }}/exclusion_report.json
+          path: "${{ runner.temp }}/exclusion_report.json"
           if-no-files-found: warn
 
       - name: upload-review-sample
@@ -100,7 +85,7 @@ jobs:
         if: always()
         with:
           name: review-sample
-          path: ${{ runner.temp }}/review_sample.json
+          path: "${{ runner.temp }}/review_sample.json"
           if-no-files-found: warn
 
       - name: upload-campaign-output
@@ -108,7 +93,7 @@ jobs:
         if: success()
         with:
           name: campaign-output
-          path: ${{ runner.temp }}/campaign_output.json
+          path: "${{ runner.temp }}/campaign_output.json"
           retention-days: 7
           if-no-files-found: warn
 
@@ -117,28 +102,13 @@ jobs:
         if: failure()
         with:
           name: failed-contacts
-          path: ${{ runner.temp }}/failed_contacts.json
+          path: "${{ runner.temp }}/failed_contacts.json"
           if-no-files-found: warn
 
       - name: notify-teams
         if: failure()
-        env:
-          LIST_ID: ${{ github.event.inputs.list_id }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          PAYLOAD=$(python -c "
-          import json, os
-          list_id = os.environ.get('LIST_ID', 'unknown')
-          run_url = os.environ.get('RUN_URL', '')
-          payload = {
-              'text': f'Campaign pipeline FAILED. list_id={list_id}. See run: {run_url}',
-              'list_id': list_id,
-              'failed_step': 'see run log',
-              'run_url': run_url
-          }
-          print(json.dumps(payload))
-          ")
           curl -s -o /dev/null -w "%{http_code}" \
             -X POST "$TEAMS_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+            -d "{\"text\": \"Campaign pipeline FAILED. list_id=$INPUT_LIST_ID. Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"list_id\": \"$INPUT_LIST_ID\", \"failed_step\": \"see run log\", \"run_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"

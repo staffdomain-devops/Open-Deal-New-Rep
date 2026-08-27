@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 5 complete; ready for Phase 6 (Write-back)
+stopped_at: Phase 6 planned (2 plans, 2 waves); ready to execute
 last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 12
+  total_plans: 14
   completed_plans: 11
   percent: 79
 ---
@@ -24,8 +24,8 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 6: Write-back — Not started**
-Status: Phase 5 complete (lint.py 557 lines, assemble_bodies.py 68 lines); ready to plan Phase 6
+**Phase 6: Write-back — Planned, ready to execute**
+Status: 06-01 (property schema check + bracket guard + batch write) and 06-02 (note creation + pin) plans written; 2 waves
 
 ## Phase History
 
@@ -36,7 +36,7 @@ Status: Phase 5 complete (lint.py 557 lines, assemble_bodies.py 68 lines); ready
 | 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
 | 4 | Complete | 04-01 (passing_ids.json + realtime path), 04-02 (batch path: submit/poll/process) |
 | 5 | Complete | 05-01 (lint engine: 18 hard + 5 soft checks), 05-02 (assemble_bodies.py) |
-| 6 | Not started | Write-back |
+| 6 | Planned | 2 plans in 2 waves; 06-01 (schema check + bracket guard + batch write), 06-02 (note + pin) |
 | 7 | Not started | CI/CD |
 
 ## Open Questions
@@ -84,5 +84,5 @@ Status: Phase 5 complete (lint.py 557 lines, assemble_bodies.py 68 lines); ready
 ## Last Session
 
 - **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 5 complete; lint.py (557 lines, 18H+5W checks, regen loop, main) + assemble_bodies.py (68 lines) committed
-- **Resume file:** .planning/phases/06-write-back/ (plan Phase 6 first)
+- **Stopped at:** Phase 6 planned; 06-01-PLAN.md and 06-02-PLAN.md written and committed
+- **Resume file:** .planning/phases/06-write-back/06-01-PLAN.md (Wave 1; execute this first)

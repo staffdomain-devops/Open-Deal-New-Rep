@@ -37,6 +37,7 @@ CONTACT_PROPS = [
     "notes_last_contacted",
     "country",
     "phone",
+    "hs_email_bounce",
 ]
 
 COMPANY_PROPS = ["name", "industry", "country"]
@@ -420,6 +421,7 @@ def fetch_handover(contact_id: str) -> dict:
         "last_contact_date": last_contact_date,
         "method": method,
         "is_active": bool(owner.active),
+        "owner_id": str(winning_owner_id) if winning_owner_id is not None else None,
     }
 
 
@@ -574,9 +576,10 @@ def main():
         failed_step = "is_only_contact"
         is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
 
-        # Assemble the D-13 record (all 11 keys, in spec order)
+        # Assemble the D-13 record (all 12 keys, in spec order)
         record = {
             "contact_props": contact_props,
+            "company_id": company_id,
             "company_props": company_props,
             "all_company_contacts": all_company_contacts,
             "deals": deals,

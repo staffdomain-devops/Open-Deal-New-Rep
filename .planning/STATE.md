@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 2 — 02-03 Task 1 complete (geo/departure/assembly), awaiting human-verify checkpoint
-last_updated: "2026-08-21T06:43:00Z"
+stopped_at: Phase 3 planned (2 plans, 2 waves); ready to execute
+last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 6
+  total_plans: 8
   completed_plans: 5
-  percent: 38
+  percent: 45
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -24,16 +24,16 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 2: Record Assembly — In progress**
-Status: 02-01, 02-02 done; 02-03 Task 1 complete (awaiting human-verify checkpoint for real-run confirmation)
+**Phase 3: Exclusion & Routing — Planned, ready to execute**
+Status: 03-01 and 03-02 plans written; Phase 2 checkpoint skipped (live test deferred to pilot)
 
 ## Phase History
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
-| 2 | In progress | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 Task 1 complete (resolve_geo, check_departure, is_only_contact_check, D-13 assembly); checkpoint pending |
-| 3 | Not started | Exclusion & Routing |
+| 2 | Complete | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 complete (resolve_geo, departure check, D-13 assembly); live-run checkpoint deferred to pilot |
+| 3 | Planned | 2 plans in 2 waves; 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
 | 6 | Not started | Write-back |
@@ -79,6 +79,6 @@ Status: 02-01, 02-02 done; 02-03 Task 1 complete (awaiting human-verify checkpoi
 
 ## Last Session
 
-- **Timestamp:** 2026-08-21T06:43:00Z
-- **Stopped at:** Phase 2 — 02-03 Task 1 complete (commit 0232564); checkpoint:human-verify requires HUBSPOT_API_KEY to run real contact test
-- **Resume file:** .planning/phases/02-record-assembly/02-03-PLAN.md (Task 2 checkpoint — provide HUBSPOT_API_KEY and a contact ID, then type "approved")
+- **Timestamp:** 2026-08-27T00:00:00Z
+- **Stopped at:** Phase 3 planned; 03-01-PLAN.md and 03-02-PLAN.md written and committed
+- **Resume file:** .planning/phases/03-exclusion-and-routing/03-01-PLAN.md (Wave 1; execute this first)

@@ -67,9 +67,16 @@ Plans:
 ### Phase 3: Exclusion & Routing
 
 **Goal:** `scripts/exclude_and_route.py` reads each `contact_{id}.json`, applies the six exclusion filters, routes passing contacts through the vertical table and close bank assignment, and assembles the final §3.7 brief. Writes `brief_{id}.json` for passing contacts and `exclusion_report.json` for all excluded/held contacts.
-**Mode:** mvp
 
 **Requirements:** EXCL-01–07, ROUTE-01–05
+
+**Plans:** 2 plans, 2 waves
+
+**Wave 1**
+- [ ] 03-01-PLAN.md — Amend fetch_record.py (owner_id in handover, company_id in schema, hs_email_bounce in CONTACT_PROPS) + create exclude_and_route.py skeleton + E1–E6 exclusion filters + GEO_UNRESOLVED hold + exclusion_report.json (EXCL-01–07)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Add route_contact(), build_brief() (exact §3.7 format), wire into main(), write brief_{id}.json per passing contact (ROUTE-01–05)
 
 **Success Criteria:**
 1. All six exclusion filters (E1–E6) implemented; each excluded contact lands in `exclusion_report.json` with its ID, filter code, and a human-readable reason

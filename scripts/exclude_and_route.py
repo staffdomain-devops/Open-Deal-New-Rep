@@ -372,6 +372,12 @@ def main():
         json.dump(excluded, f, indent=2)
     print(f"Exclusion report: {len(excluded)} excluded, {len(passing)} passing. Written {report_path}")
 
+    # Write passing_ids.json (consumed by generate_campaign.py)
+    passing_path = os.path.join(RUNNER_TEMP, "passing_ids.json")
+    with open(passing_path, "w") as f:
+        json.dump(passing, f, indent=2)
+    print(f"Passing IDs written: {len(passing)} contacts. Written {passing_path}")
+
     # Routing and brief assembly for passing contacts
     briefs_written = 0
     for cid in passing:

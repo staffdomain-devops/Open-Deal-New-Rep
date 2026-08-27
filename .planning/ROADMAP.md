@@ -94,6 +94,16 @@ Plans:
 
 **Requirements:** GEN-01–07
 
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 04-01-PLAN.md — Amend exclude_and_route.py to write passing_ids.json + create generate_campaign.py skeleton with realtime API path (GEN-01, GEN-02, GEN-03, GEN-05, GEN-06, GEN-07)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md — Add Batch API path: submit_batch(), poll_batch(), process_batch_results(), INPUT_USE_BATCH_API toggle (GEN-04)
+
 **Success Criteria:**
 1. System prompt sent with `cache_control: {type: "ephemeral"}`; model is `claude-sonnet-5`; `max_tokens=3000`
 2. Response parsed against 8-key schema (`e1`–`e5` each with `subject`/`body`; `call1`, `call2`, `pin` each with `body`)

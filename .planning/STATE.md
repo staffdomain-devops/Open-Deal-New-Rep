@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 4 planned (2 plans, 2 waves); ready to execute
+stopped_at: Phase 4 complete (04-01, 04-02); ready to execute Phase 5
 last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 7
-  percent: 50
+  completed_plans: 9
+  percent: 70
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -20,12 +20,12 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 4 — Generation (planned, ready to execute)
+**Current focus:** Phase 5 — Lint & Body Assembly
 
 ## Current Phase
 
-**Phase 4: Generation — Planned, ready to execute**
-Status: 04-01 (realtime path) and 04-02 (batch path) plans written; 2 waves
+**Phase 5: Lint & Body Assembly — Not yet started**
+Status: 04-01 and 04-02 both complete; Phase 5 plans not yet written
 
 ## Phase History
 
@@ -34,7 +34,7 @@ Status: 04-01 (realtime path) and 04-02 (batch path) plans written; 2 waves
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
 | 2 | Complete | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 complete (resolve_geo, departure check, D-13 assembly); live-run checkpoint deferred to pilot |
 | 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
-| 4 | Planned | 2 plans in 2 waves; 04-01 (realtime API + passing_ids.json), 04-02 (Batch API toggle) |
+| 4 | Complete | 04-01 (passing_ids.json + realtime path), 04-02 (batch path: submit/poll/process) |
 | 5 | Not started | Lint & Body Assembly |
 | 6 | Not started | Write-back |
 | 7 | Not started | CI/CD |
@@ -78,9 +78,11 @@ Status: 04-01 (realtime path) and 04-02 (batch path) plans written; 2 waves
 | 02 | 03 | 2 min | 1 | 1 |
 | 03 | 01 | 5 min | 2 | 2 |
 | 03 | 02 | 5 min | 3 | 1 |
+| 04 | 01 | 5 min | 2 | 2 |
+| 04 | 02 | 2 min | 1 | 1 |
 
 ## Last Session
 
 - **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 4 planned; 04-01-PLAN.md and 04-02-PLAN.md written and committed
-- **Resume file:** .planning/phases/04-generation/04-01-PLAN.md (Wave 1; execute this first)
+- **Stopped at:** Phase 4 complete; generate_campaign.py created with realtime + batch paths; commit 4867407
+- **Resume file:** .planning/phases/05-lint-assembly/05-PLAN.md (not yet written; plan Phase 5 next)

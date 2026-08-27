@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: "06-01 complete (write_hubspot.py); 06-02 (note + pin) next"
-last_updated: "2026-08-27T02:34:38Z"
+stopped_at: "06-02 complete (write_hubspot.py: note creation + pin + manual_pin_list fallback); Phase 6 complete"
+last_updated: "2026-08-27T03:10:00Z"
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 14
-  completed_plans: 12
-  percent: 86
+  completed_plans: 13
+  percent: 93
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -24,8 +24,8 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 6: Write-back — In progress**
-Status: 06-01 complete (write_hubspot.py); 06-02 (note creation + pin) next
+**Phase 6: Write-back — Complete**
+Status: 06-01 complete (property schema check + bracket guard + batch write); 06-02 complete (note creation + pin + manual_pin_list fallback)
 
 ## Phase History
 
@@ -36,7 +36,7 @@ Status: 06-01 complete (write_hubspot.py); 06-02 (note creation + pin) next
 | 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
 | 4 | Complete | 04-01 (passing_ids.json + realtime path), 04-02 (batch path: submit/poll/process) |
 | 5 | Complete | 05-01 (lint engine: 18 hard + 5 soft checks), 05-02 (assemble_bodies.py) |
-| 6 | In progress | 06-01 complete (write_hubspot.py: schema check + bracket guard + batch write); 06-02 (note + pin) pending |
+| 6 | Complete | 06-01 (write_hubspot.py: schema check + bracket guard + batch write); 06-02 (note creation + pin + manual_pin_list fallback) |
 | 7 | Not started | CI/CD |
 
 ## Open Questions
@@ -70,6 +70,8 @@ Status: 06-01 complete (write_hubspot.py); 06-02 (note creation + pin) next
 | 2026-08-21 | json.dump uses default=str for non-serialisable types | Handles HubSpot SDK datetime objects; no partial write on failure (D-15) |
 | 2026-08-27 | _check_property_schema not decorated with @retry | Wrong field_type is a config error, not transient; sys.exit(1) before any write |
 | 2026-08-27 | EMAIL_PROP_NAMES derived from PROPERTY_MAP via startswith filter | Single source of truth; no separate list to maintain alongside PROPERTY_MAP |
+| 2026-08-27 | _create_note decorated with @retry; _pin_note is not | Note creation is retriable; pin is a soft fallback with manual_pin_list.json |
+| 2026-08-27 | _pin_note failure writes to manual_pin_list.json, not DLQ | Pin is advisory; properties already written; manual recovery is sufficient |
 
 ## Performance Metrics
 
@@ -83,9 +85,10 @@ Status: 06-01 complete (write_hubspot.py); 06-02 (note creation + pin) next
 | 04 | 01 | 5 min | 2 | 2 |
 | 04 | 02 | 2 min | 1 | 1 |
 | 06 | 01 | 2 min | 1 | 1 |
+| 06 | 02 | 2 min | 1 | 1 |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-27T02:34:38Z
-- **Stopped at:** 06-01 complete (write_hubspot.py: schema check, bracket guard, batch write, DLQ)
-- **Resume file:** .planning/phases/06-write-back/06-02-PLAN.md
+- **Timestamp:** 2026-08-27T03:10:00Z
+- **Stopped at:** 06-02 complete (write_hubspot.py: _create_note, _pin_note, manual_pin_list fallback). Phase 6 complete.
+- **Resume file:** .planning/phases/07-cicd/ (Phase 7: CI/CD)

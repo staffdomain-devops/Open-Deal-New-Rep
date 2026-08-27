@@ -20,8 +20,16 @@ def write_dlq(contact_id, contact_email, failed_step, error_message, retry_count
         "retry_count": retry_count,
     }
     path = os.path.join(os.environ.get("RUNNER_TEMP", "."), "failed_contacts.json")
-    with open(path, "w") as f:
-        json.dump(record, f, indent=2)
+    try:
+        with open(path, encoding="utf-8") as f:
+            records = json.load(f)
+        if not isinstance(records, list):
+            records = [records]  # migrate old single-record files
+    except (FileNotFoundError, json.JSONDecodeError):
+        records = []
+    records.append(record)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(records, f, indent=2)
 
 
 def _is_hubspot_transient(exc):

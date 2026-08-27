@@ -71,7 +71,7 @@
 - [x] **WRITE-01**: Batch update 12 contact properties per contact: `email_1_subject`, `email_1_body` … `email_5_subject`, `email_5_body` (10 email props) + `task_note_1` (Call 1 briefing) + `task_note_2` (Call 2 briefing) — all **multi-line text** type; 100 records per batch; match by `hs_object_id`
 - [x] **WRITE-02**: Pre-write: verify all 12 properties exist as multi-line text type on first run (abort if any is single-line text)
 - [x] **WRITE-03**: Pre-send bracket guard: check no `[` appears in any of the 10 email properties on enrolled contacts; fail hard if found (task_note properties are internal-only and exempt from this check)
-- [ ] **WRITE-04**: Create note engagement with pin body; pin to contact record (verify API support at pilot; fallback: log manual pin list)
+- [x] **WRITE-04**: Create note engagement with pin body; pin to contact record (verify API support at pilot; fallback: log manual pin list) — completed 06-02 (commit dfb8ed4)
 - [x] **WRITE-05**: Paragraph separator: real `\n\n` in all body properties; verify rendering in sequence editor on 2–3 records before full run
 
 ### Error Handling

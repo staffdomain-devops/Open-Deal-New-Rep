@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: "06-02 complete (write_hubspot.py: note creation + pin + manual_pin_list fallback); Phase 6 complete"
-last_updated: "2026-08-27T03:10:00Z"
+stopped_at: "Phase 6 complete — write_hubspot.py: 12-property batch write, bracket guard, schema check, note creation + pin, DLQ; all code review fixes applied; ready for Phase 7 (CI/CD)"
+last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
   completed_phases: 6
@@ -20,7 +20,7 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 6 — Write-back
+**Current focus:** Phase 7 — CI/CD
 
 ## Current Phase
 

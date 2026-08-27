@@ -82,7 +82,7 @@ Reuse `utils.py` from Inbound unchanged — same retry/DLQ patterns apply.
 | Note pinning via engagements API | Verify support at pilot; manual fallback if API doesn't support pinning | — Pending |
 
 ---
-*Last updated: 2026-08-21 after initialization*
+*Last updated: 2026-08-27 — Phase 6 complete (write_hubspot.py: 12-property batch write, bracket guard, schema check, note creation + pin with manual fallback, DLQ). Phase 7 (CI/CD) is next.*
 
 ## Evolution
 

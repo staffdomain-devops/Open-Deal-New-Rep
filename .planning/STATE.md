@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 3 planned (2 plans, 2 waves); ready to execute
+stopped_at: Phase 3 complete; ready to execute Phase 4 (Generation)
 last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 5
-  percent: 45
+  completed_plans: 7
+  percent: 64
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -20,12 +20,12 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 2 — Record Assembly
+**Current focus:** Phase 4 — Generation
 
 ## Current Phase
 
-**Phase 3: Exclusion & Routing — Planned, ready to execute**
-Status: 03-01 and 03-02 plans written; Phase 2 checkpoint skipped (live test deferred to pilot)
+**Phase 4: Generation — Not started; ready to plan**
+Status: Phase 3 complete (03-01 and 03-02 both executed); exclusion filters, routing, and brief assembly all done
 
 ## Phase History
 
@@ -33,7 +33,7 @@ Status: 03-01 and 03-02 plans written; Phase 2 checkpoint skipped (live test def
 |-------|--------|-------|
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
 | 2 | Complete | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 complete (resolve_geo, departure check, D-13 assembly); live-run checkpoint deferred to pilot |
-| 3 | Planned | 2 plans in 2 waves; 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
+| 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
 | 4 | Not started | Generation |
 | 5 | Not started | Lint & Body Assembly |
 | 6 | Not started | Write-back |
@@ -76,9 +76,11 @@ Status: 03-01 and 03-02 plans written; Phase 2 checkpoint skipped (live test def
 | 02 | 01 | 3 min | 1 | 1 |
 | 02 | 02 | 3 min | 2 | 1 |
 | 02 | 03 | 2 min | 1 | 1 |
+| 03 | 01 | 5 min | 2 | 2 |
+| 03 | 02 | 5 min | 3 | 1 |
 
 ## Last Session
 
 - **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 3 planned; 03-01-PLAN.md and 03-02-PLAN.md written and committed
-- **Resume file:** .planning/phases/03-exclusion-and-routing/03-01-PLAN.md (Wave 1; execute this first)
+- **Stopped at:** Phase 3 complete; both plans executed and committed
+- **Resume file:** .planning/phases/04-generation/ (Phase 4 not yet planned)

@@ -420,7 +420,7 @@ def fetch_handover(contact_id: str) -> dict:
         "first_name": owner.first_name,
         "last_contact_date": last_contact_date,
         "method": method,
-        "is_active": bool(owner.active),
+        "is_active": not bool(getattr(owner, "archived", False)),
         "owner_id": str(winning_owner_id) if winning_owner_id is not None else None,
     }
 

@@ -535,73 +535,90 @@ def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bo
 # ---------------------------------------------------------------------------
 
 
-def main():
-    if len(sys.argv) < 2:
-        raise IndexError("Usage: python fetch_record.py <contact_id>")
-
-    contact_id = sys.argv[1]
-
-    # DLQ sentinel — written at startup before any fetch calls (D-15)
-    write_dlq(contact_id, "", "startup", "sentinel", 0)
-
+def _fetch_one(contact_id: str) -> None:
+    """Fetch and write all data for a single contact. Raises on any failure."""
     failed_step = "unknown"
-    try:
-        failed_step = "fetch_contact"
-        contact_props = fetch_contact(contact_id)
 
-        failed_step = "fetch_company"
-        company_id, company_props = fetch_company(contact_id)
+    failed_step = "fetch_contact"
+    contact_props = fetch_contact(contact_id)
 
-        failed_step = "fetch_all_company_contacts"
-        all_company_contacts = fetch_all_company_contacts(company_id)
+    failed_step = "fetch_company"
+    company_id, company_props = fetch_company(contact_id)
 
-        failed_step = "fetch_deals"
-        deals = fetch_deals(company_id)
+    failed_step = "fetch_all_company_contacts"
+    all_company_contacts = fetch_all_company_contacts(company_id)
 
-        failed_step = "fetch_notes"
-        story_notes, live_hiring_signals, sensitive_items = fetch_notes(
-            contact_id, contact_props, all_company_contacts
-        )
+    failed_step = "fetch_deals"
+    deals = fetch_deals(company_id)
 
-        failed_step = "fetch_handover"
-        handover = fetch_handover(contact_id)
+    failed_step = "fetch_notes"
+    story_notes, live_hiring_signals, sensitive_items = fetch_notes(
+        contact_id, contact_props, all_company_contacts
+    )
 
-        # Resolution functions (Plan 02-03)
-        failed_step = "resolve_geo"
-        geo = resolve_geo(company_props, contact_props)
+    failed_step = "fetch_handover"
+    handover = fetch_handover(contact_id)
 
-        failed_step = "check_departure"
-        departure_flagged = check_departure(story_notes, contact_props)
+    failed_step = "resolve_geo"
+    geo = resolve_geo(company_props, contact_props)
 
-        failed_step = "is_only_contact"
-        is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
+    failed_step = "check_departure"
+    departure_flagged = check_departure(story_notes, contact_props)
 
-        # Assemble the D-13 record (all 12 keys, in spec order)
-        record = {
-            "contact_props": contact_props,
-            "company_id": company_id,
-            "company_props": company_props,
-            "all_company_contacts": all_company_contacts,
-            "deals": deals,
-            "story_notes": story_notes,
-            "live_hiring_signals": live_hiring_signals,
-            "handover": handover,
-            "geo": geo,
-            "is_only_contact": is_only_contact,
-            "sensitive_items": sensitive_items,
-            "departure_flagged": departure_flagged,
-        }
+    failed_step = "is_only_contact"
+    is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
 
-        # Write output — only reached if all fetch + resolution calls succeeded (D-15, T-02-10)
-        out_path = os.path.join(RUNNER_TEMP, f"contact_{contact_id}.json")
-        failed_step = "write_output"
-        with open(out_path, "w") as f:
-            json.dump(record, f, indent=2, default=str)
-        print(f"Written {out_path}")
+    record = {
+        "contact_props": contact_props,
+        "company_id": company_id,
+        "company_props": company_props,
+        "all_company_contacts": all_company_contacts,
+        "deals": deals,
+        "story_notes": story_notes,
+        "live_hiring_signals": live_hiring_signals,
+        "handover": handover,
+        "geo": geo,
+        "is_only_contact": is_only_contact,
+        "sensitive_items": sensitive_items,
+        "departure_flagged": departure_flagged,
+    }
 
-    except Exception as e:
-        write_dlq(contact_id, "", failed_step, str(e), 0)
-        sys.exit(1)
+    out_path = os.path.join(RUNNER_TEMP, f"contact_{contact_id}.json")
+    with open(out_path, "w") as f:
+        json.dump(record, f, indent=2, default=str)
+    print(f"Written {out_path}")
+
+
+def main():
+    # Batch mode: read contact_ids.json and process all contacts.
+    # Single-contact mode: python fetch_record.py <contact_id> (for debugging).
+    if len(sys.argv) >= 2:
+        contact_id = sys.argv[1]
+        write_dlq(contact_id, "", "startup", "sentinel", 0)
+        try:
+            _fetch_one(contact_id)
+        except Exception as e:
+            write_dlq(contact_id, "", "fetch_record", str(e), 0)
+            sys.exit(1)
+        return
+
+    ids_path = os.path.join(RUNNER_TEMP, "contact_ids.json")
+    with open(ids_path) as f:
+        contact_ids = json.load(f)
+
+    total = len(contact_ids)
+    write_dlq("batch", "", "startup", "sentinel", 0)
+
+    fetched_count = 0
+    for cid in contact_ids:
+        try:
+            _fetch_one(cid)
+            fetched_count += 1
+        except Exception as e:
+            write_dlq(cid, "", "fetch_record", str(e), 0)
+            print(f"ERROR {cid}: {e}", file=sys.stderr)
+
+    print(f"Fetch complete: {fetched_count}/{total} contacts fetched.")
 
 
 if __name__ == "__main__":

@@ -204,7 +204,7 @@ def _pin_note(contact_id: str, note_id: str, client) -> bool:
 def main() -> None:
     # Step 1: Load lint_passing_ids.json
     ids_path = os.path.join(RUNNER_TEMP, "lint_passing_ids.json")
-    with open(ids_path) as f:
+    with open(ids_path, encoding="utf-8") as f:
         contact_ids = json.load(f)
 
     # Step 2: DLQ sentinel — written before any contact work (ERR-02)
@@ -218,44 +218,99 @@ def main() -> None:
 
     # Step 5: Initialise batch state
     pending_batch = []
+    assembled_cache = {}  # cid -> assembled dict for contacts queued in pending_batch
+    written_ids = []      # cids whose properties were successfully flushed
     written_count = 0
     error_count = 0
 
-    # Step 6: Loop over contacts
+    # Step 6: First pass — validate, build batch inputs, flush property batches.
+    # Notes are NOT created here; they are created in the second pass only for
+    # contacts whose properties were successfully written (CR-03).
     for cid in contact_ids:
         assembled_path = os.path.join(RUNNER_TEMP, f"assembled_{cid}.json")
         if not os.path.exists(assembled_path):
             print(f"SKIP {cid}: assembled file not found", file=sys.stderr)
             continue
 
+        assembled = None  # CR-02: initialise before try so except can reference it safely
         try:
             with open(assembled_path, encoding="utf-8") as f:
                 assembled = json.load(f)
 
+            # WR-04: validate pin.body before touching pending_batch
+            pin_body = assembled.get("pin", {}).get("body")
+            if not pin_body:
+                raise ValueError(f"Missing 'pin.body' in assembled JSON for contact {cid}")
+
             _bracket_guard(assembled)
             input_dict = _build_batch_input(str(cid), assembled)
             pending_batch.append(input_dict)
+            assembled_cache[str(cid)] = assembled
 
             if len(pending_batch) == BATCH_SIZE:
-                _write_properties_batch(client, pending_batch)
-                written_count += len(pending_batch)
-                pending_batch = []
-
-            note_id = _create_note(client, str(cid), assembled["pin"]["body"])
-            _pin_note(str(cid), note_id, client)
+                try:
+                    _write_properties_batch(client, pending_batch)
+                    batch_ids = [d["id"] for d in pending_batch]
+                    written_ids.extend(batch_ids)
+                    written_count += len(pending_batch)
+                except Exception as batch_exc:
+                    # WR-01: DLQ every contact in a failed mid-loop batch flush
+                    for d in pending_batch:
+                        write_dlq(d["id"], "", "flush_batch", str(batch_exc), 0)
+                        error_count += 1
+                    print(f"ERROR during mid-loop batch flush: {batch_exc}", file=sys.stderr)
+                finally:
+                    pending_batch = []
+                    # Remove failed contacts from cache so they are skipped in pass 2
+                    written_set = set(written_ids)
+                    for cid_key in list(assembled_cache):
+                        if cid_key not in written_set:
+                            assembled_cache.pop(cid_key, None)
 
         except Exception as exc:
-            write_dlq(cid, assembled.get("contact_id", str(cid)), "write_properties_or_note", str(exc), 0)
+            # CR-02: guard assembled.get() — assembled may be None if open/json.load failed
+            contact_email = assembled.get("contact_id", str(cid)) if assembled else str(cid)
+            write_dlq(cid, contact_email, "validate_or_build", str(exc), 0)
             error_count += 1
             print(f"ERROR {cid}: {exc}", file=sys.stderr)
             continue
 
-    # Step 7: Flush remaining batch
+    # Step 7: Flush remaining property batch (WR-01: wrapped in try/except)
     if pending_batch:
-        _write_properties_batch(client, pending_batch)
-        written_count += len(pending_batch)
+        try:
+            _write_properties_batch(client, pending_batch)
+            batch_ids = [d["id"] for d in pending_batch]
+            written_ids.extend(batch_ids)
+            written_count += len(pending_batch)
+        except Exception as exc:
+            for d in pending_batch:
+                write_dlq(d["id"], "", "flush_batch", str(exc), 0)
+            error_count += len(pending_batch)
+            print(f"ERROR during final batch flush: {exc}", file=sys.stderr)
+            # Remove unflushed contacts from cache so they are skipped in pass 2
+            for d in pending_batch:
+                assembled_cache.pop(d["id"], None)
 
-    # Step 8: Summary
+    # Step 8: Second pass — create and pin notes only for contacts whose
+    # properties were successfully written (CR-03).
+    for cid in written_ids:
+        assembled = assembled_cache.get(str(cid))
+        if assembled is None:
+            continue
+        pin_body = assembled.get("pin", {}).get("body")
+        if not pin_body:
+            print(f"SKIP note for {cid}: pin.body missing in cache", file=sys.stderr)
+            continue
+        try:
+            note_id = _create_note_object(client, pin_body)
+            _associate_note(client, note_id, str(cid))
+            _pin_note(str(cid), note_id, client)
+        except Exception as exc:
+            contact_email = assembled.get("contact_id", str(cid))
+            write_dlq(cid, contact_email, "create_or_pin_note", str(exc), 0)
+            print(f"ERROR note for {cid}: {exc}", file=sys.stderr)
+
+    # Step 9: Summary
     print(f"Write-back complete: {written_count} contacts written, {error_count} errors.")
 
 

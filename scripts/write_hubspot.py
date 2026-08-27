@@ -134,13 +134,11 @@ def _write_properties_batch(client, batch_inputs: list) -> None:
 
 
 @retry(**HS_RETRY_KWARGS)
-def _create_note(client, contact_id: str, body: str) -> str:
-    """Create a HubSpot note with the given body and associate it with the contact.
+def _create_note_object(client, body: str) -> str:
+    """Create a HubSpot note object with the given body.
 
-    Decorated with @retry(**HS_RETRY_KWARGS) — transient 429/5xx errors are
-    retried with exponential backoff + HubSpot Retry-After header.
-
-    Returns the note_id string.
+    Decorated with @retry(**HS_RETRY_KWARGS). Returns the note_id string.
+    Separated from association so that retries do not create duplicate note objects.
     """
     note_input = SimplePublicObjectInputForCreate(
         properties={
@@ -151,16 +149,22 @@ def _create_note(client, contact_id: str, body: str) -> str:
     response = client.crm.objects.notes.basic_api.create(
         simple_public_object_input_for_create=note_input
     )
-    note_id = response.id
+    return str(response.id)
 
+
+@retry(**HS_RETRY_KWARGS)
+def _associate_note(client, note_id: str, contact_id: str) -> None:
+    """Associate an existing note object with a contact.
+
+    Decorated with @retry(**HS_RETRY_KWARGS). Retrying association alone is safe
+    because the note object already exists — no duplicate note objects accumulate.
+    """
     client.crm.objects.notes.associations_api.create(
         note_id=note_id,
         to_object_type="contacts",
         to_object_id=contact_id,
         association_type="note_to_contact",
     )
-
-    return str(note_id)
 
 
 def _pin_note(contact_id: str, note_id: str, client) -> bool:

@@ -106,11 +106,11 @@ def fetch_company(contact_id: str) -> tuple:
     Returns (company_id: str, company_props: dict).
     Returns ("", {}) if no company association exists.
     """
-    assoc = client.crm.contacts.associations_api.get_all(contact_id, "companies")
+    assoc = client.crm.associations.v4.basic_api.get_page("contacts", contact_id, "companies")
     results = assoc.results or []
     if not results:
         return ("", {})
-    company_id = str(results[0].id)
+    company_id = str(results[0].to_object_id)
     company = client.crm.companies.basic_api.get_by_id(
         company_id, properties=COMPANY_PROPS
     )
@@ -129,8 +129,8 @@ def fetch_all_company_contacts(company_id: str) -> list:
     if not company_id:
         return []
 
-    assoc = client.crm.companies.associations_api.get_all(company_id, "contacts")
-    contact_ids = [r.id for r in (assoc.results or [])]
+    assoc = client.crm.associations.v4.basic_api.get_page("companies", company_id, "contacts")
+    contact_ids = [r.to_object_id for r in (assoc.results or [])]
     if not contact_ids:
         return []
 
@@ -170,8 +170,8 @@ def fetch_deals(company_id: str) -> list:
     if not company_id:
         return []
 
-    assoc = client.crm.companies.associations_api.get_all(company_id, "deals")
-    deal_ids = [r.id for r in (assoc.results or [])]
+    assoc = client.crm.associations.v4.basic_api.get_page("companies", company_id, "deals")
+    deal_ids = [r.to_object_id for r in (assoc.results or [])]
     if not deal_ids:
         return []
 

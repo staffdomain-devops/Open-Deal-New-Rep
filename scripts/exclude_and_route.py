@@ -154,6 +154,167 @@ def check_geo_hold(record: dict) -> tuple:
 
 
 # ---------------------------------------------------------------------------
+# Routing helpers
+# ---------------------------------------------------------------------------
+
+
+def route_contact(record: dict) -> tuple:
+    """Return (VerticalRoute, industry_match_strength) for a contact record.
+
+    industry_match_strength is "exact" when a named row (tokens non-empty) matched;
+    "partial" when the default row fired (empty industry or no token match).
+    """
+    industry = record["contact_props"].get("industry") or ""
+    vr = route(industry)
+
+    normalised = industry.lower().strip() if industry else ""
+    matched_named = False
+    for row in ROUTING_TABLE:
+        if not row["tokens"]:
+            continue
+        if any(token in normalised for token in row["tokens"]):
+            matched_named = True
+            break
+    industry_match_strength = "exact" if matched_named else "partial"
+
+    return (vr, industry_match_strength)
+
+
+def _get_colleagues(contact_props: dict, all_company_contacts: list) -> list:
+    """Return up to 2 colleagues with num_contacted_notes >= 1, excluding the contact themselves."""
+    contact_first = (contact_props.get("firstname") or "").strip().lower()
+    contact_last = (contact_props.get("lastname") or "").strip().lower()
+
+    colleagues = [
+        c for c in all_company_contacts
+        if (
+            int(c.get("num_contacted_notes") or 0) >= 1
+            and not (
+                (c.get("firstname") or "").strip().lower() == contact_first
+                and (c.get("lastname") or "").strip().lower() == contact_last
+            )
+        )
+    ]
+    colleagues.sort(key=lambda c: int(c.get("num_contacted_notes") or 0), reverse=True)
+    return colleagues[:2]
+
+
+# ---------------------------------------------------------------------------
+# Brief assembly
+# ---------------------------------------------------------------------------
+
+GEO_DISPLAY = {
+    "AU": "Australia",
+    "NZ": "New Zealand",
+    "US": "United States. Nothing in the copy may assume Australia.",
+    "UK": "United Kingdom. Nothing in the copy may assume Australia.",
+}
+
+
+def build_brief(contact_id: str, record: dict, vr, close_option: int, close_text: str) -> str:
+    """Assemble the §3.7 research brief as a plain-text string. Field order is spec-locked."""
+    props = record["contact_props"]
+    company_props = record["company_props"]
+    handover = record["handover"]
+    deals = record["deals"]
+    story_notes = record["story_notes"]
+    live_signals = record["live_hiring_signals"]
+    sensitive = record["sensitive_items"]
+    is_only = record["is_only_contact"]
+    all_contacts = record["all_company_contacts"]
+    geo = record.get("geo", "")
+
+    firstname = props.get("firstname") or ""
+    lastname = props.get("lastname") or ""
+    jobtitle = props.get("jobtitle") or "not recorded"
+    company_name = company_props.get("name") or props.get("company") or "not recorded"
+    industry = props.get("industry") or "not recorded"
+    geo_display = GEO_DISPLAY.get(geo, geo or "not recorded")
+
+    lines = []
+
+    lines.append(f"CONTACT: {firstname} {lastname}".strip())
+    lines.append(f"JOB TITLE: {jobtitle}")
+    lines.append(f"COMPANY: {company_name}")
+    lines.append(f"INDUSTRY: {industry}")
+    lines.append(f"COUNTRY: {geo_display}")
+    lines.append("")
+
+    h_name = handover["first_name"] if handover else "Unknown"
+    h_method = handover.get("method", "unknown") if handover else "unknown"
+    h_date = handover.get("last_contact_date", "unknown") if handover else "unknown"
+    lines.append(f"HANDOVER: The last person to contact them was {h_name} ({h_method}, {h_date}).")
+    lines.append(f"{h_name} has left the business. Open email 1 by saying you have recently taken over the account from {h_name}.")
+    lines.append("")
+
+    if is_only:
+        lines.append("The recipient is the only contact on this account. Do not reference colleagues.")
+    else:
+        colleagues = _get_colleagues(props, all_contacts)
+        if colleagues:
+            colleague_parts = [
+                f"{c.get('firstname', '')} ({c.get('jobtitle', 'role unknown')})"
+                for c in colleagues
+            ]
+            lines.append(f"COLLEAGUES WE ALSO DEALT WITH: {', '.join(colleague_parts)}")
+            lines.append("  — name one or two of them by first name in email 1.")
+        else:
+            lines.append("COLLEAGUES WE ALSO DEALT WITH: none on record.")
+    lines.append("")
+
+    if not deals:
+        lines.append("DEAL HISTORY: No previous deal on record. Do not invent one. Email 1 is relationship-only;")
+        lines.append("email 3 leads with an industry observation, not a role follow-up.")
+    else:
+        deal_parts = []
+        for d in deals:
+            name = d.get("dealname") or "unnamed deal"
+            stage = d.get("dealstage") or "unknown stage"
+            created = (d.get("createdate") or "")[:10]
+            closed = (d.get("closedate") or "")[:10]
+            part = f"{name} ({stage}"
+            if created:
+                part += f", created {created}"
+            if closed:
+                part += f", closed {closed}"
+            part += ")"
+            deal_parts.append(part)
+        lines.append("DEAL HISTORY: " + "; ".join(deal_parts))
+    lines.append("")
+
+    lines.append("WHAT THE NOTES SAY:")
+    notes_to_use = story_notes[:5]
+    if notes_to_use:
+        for note in notes_to_use:
+            first_line = note.strip().splitlines()[0] if note.strip() else note.strip()
+            lines.append(f"- {first_line[:300]}")
+    else:
+        lines.append("- No notes on record.")
+    lines.append("")
+
+    if sensitive:
+        lines.append("INTERNAL - NEVER REFERENCE:")
+        for item in sensitive:
+            lines.append(f"  {item[:300]}")
+        lines.append("")
+
+    if live_signals:
+        signal_parts = [
+            f"{s.get('role', 'unknown role')} ({s.get('month', 'unknown month')})"
+            for s in live_signals
+        ]
+        lines.append(f"LIVE HIRING SIGNALS (public job ads): {', '.join(signal_parts)}")
+        lines.append("")
+
+    lines.append(f"CASE STUDY FOR EMAIL 2: {vr.case_study}. Do not describe its contents.")
+    lines.append(f"EMAIL 3 INLINE PAGE: {vr.email3_url}")
+    lines.append(f"EMAIL 4 INLINE PAGE: {vr.email4_url}")
+    lines.append(f"EMAIL 1 CLOSE: Use close option {close_option} from the close bank.")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Main filter stage
 # ---------------------------------------------------------------------------
 
@@ -211,7 +372,39 @@ def main():
         json.dump(excluded, f, indent=2)
     print(f"Exclusion report: {len(excluded)} excluded, {len(passing)} passing. Written {report_path}")
 
-    # Plan 03-02 will add routing and brief assembly here for the `passing` list.
+    # Routing and brief assembly for passing contacts
+    briefs_written = 0
+    for cid in passing:
+        record = records[cid]
+        try:
+            vr, industry_match_strength = route_contact(record)
+
+            touches = int(record["contact_props"].get("num_contacted_notes") or 0)
+            jobtitle = record["contact_props"].get("jobtitle") or ""
+            close_option, close_text = assign_close(touches, jobtitle, industry_match_strength)
+
+            brief_text = build_brief(cid, record, vr, close_option, close_text)
+
+            brief_payload = {
+                "contact_id": cid,
+                "brief_text": brief_text,
+                "case_study": vr.case_study,
+                "email3_url": vr.email3_url,
+                "email4_url": vr.email4_url,
+                "close_option": close_option,
+                "close_text": close_text,
+            }
+            brief_path = os.path.join(RUNNER_TEMP, f"brief_{cid}.json")
+            with open(brief_path, "w") as f:
+                json.dump(brief_payload, f, indent=2)
+            briefs_written += 1
+
+        except Exception as e:
+            write_dlq(cid, record["contact_props"].get("email", ""), "routing_brief_assembly", str(e), 0)
+            print(f"ERROR routing/brief for {cid}: {e}", file=sys.stderr)
+
+    print(f"Briefs written: {briefs_written}/{len(passing)}")
+
     return passing, records
 
 

@@ -169,6 +169,16 @@ Plans:
 
 **Requirements:** CI-01–06, ERR-03–04
 
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 07-01-PLAN.md — Create scripts/assemble_output.py: campaign_output.json aggregator (CI-05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 07-02-PLAN.md — Create .github/workflows/campaign.yml: full pipeline orchestration, pilot mode cap, artifact uploads, Teams failure notification (CI-01, CI-02, CI-03, CI-04, CI-05, CI-06, ERR-03, ERR-04)
+
 **Success Criteria:**
 1. `workflow_dispatch` inputs: `list_id` (required string), `pilot_mode` (boolean, default `true`)
 2. Pilot mode: if `pilot_mode=true` and contacts > 20, workflow processes only first 20 and prints a warning line

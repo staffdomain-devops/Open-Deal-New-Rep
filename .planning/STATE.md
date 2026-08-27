@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: "Phase 7 planned — 2 plans in 2 waves; 07-01 creates assemble_output.py, 07-02 creates campaign.yml with pilot mode, artifact uploads, Teams failure notification"
+stopped_at: "Phase 7 executed — 07-01 (assemble_output.py) and 07-02 (campaign.yml) complete; awaiting human checkpoint: JP must verify workflow_dispatch inputs and artifact behavior in GitHub Actions"
 last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 16
-  completed_plans: 13
-  percent: 93
+  completed_plans: 15
+  percent: 97
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -37,7 +37,7 @@ Status: 06-01 complete (property schema check + bracket guard + batch write); 06
 | 4 | Complete | 04-01 (passing_ids.json + realtime path), 04-02 (batch path: submit/poll/process) |
 | 5 | Complete | 05-01 (lint engine: 18 hard + 5 soft checks), 05-02 (assemble_bodies.py) |
 | 6 | Complete | 06-01 (write_hubspot.py: schema check + bracket guard + batch write); 06-02 (note creation + pin + manual_pin_list fallback) |
-| 7 | Planned | CI/CD — 2 plans (07-01 assemble_output.py, 07-02 campaign.yml) |
+| 7 | Complete (pending human UAT) | 07-01 (assemble_output.py), 07-02 (campaign.yml); human checkpoint: verify workflow inputs + artifact behavior |
 
 ## Open Questions
 
@@ -90,5 +90,5 @@ Status: 06-01 complete (property schema check + bracket guard + batch write); 06
 ## Last Session
 
 - **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 7 planned (2 plans: 07-01 assemble_output.py Wave 1, 07-02 campaign.yml Wave 2). Ready to execute.
-- **Resume file:** /gsd-execute-phase 7
+- **Stopped at:** Phase 7 executed. 07-01 (assemble_output.py) and 07-02 (campaign.yml) built and committed. Human checkpoint pending: JP must verify workflow_dispatch inputs and artifact behavior in GitHub Actions (Actions tab → Campaign Pipeline → Run workflow). Type "verified" to close the gate.
+- **Resume file:** n/a — awaiting human UAT

@@ -122,10 +122,10 @@ Plans:
 **Plans:** 2 plans
 
 **Wave 1**
-- [ ] 05-01-PLAN.md — Create lint.py: all 18 hard check functions (H01–H18) + 5 soft warning functions (W01–W05) + run_lint() + _write_to_review_sample() (LINT-01, LINT-02, LINT-03, LINT-05)
+- [x] 05-01-PLAN.md — Create lint.py: all 18 hard check functions (H01–H18) + 5 soft warning functions (W01–W05) + run_lint() + _write_to_review_sample() (LINT-01, LINT-02, LINT-03, LINT-05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 05-02-PLAN.md — Add _regenerate_contact() + main() to lint.py + create assemble_bodies.py (LINT-04, ASSEM-01, ASSEM-02, ASSEM-03)
+- [x] 05-02-PLAN.md — Add _regenerate_contact() + main() to lint.py + create assemble_bodies.py (LINT-04, ASSEM-01, ASSEM-02, ASSEM-03)
 
 **Success Criteria:**
 1. All 12 hard checks from v1.0 implemented; test vector with a known em-dash failure and a known banned-word failure each triggers regeneration

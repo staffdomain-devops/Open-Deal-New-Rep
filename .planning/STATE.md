@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 3 complete; ready to execute Phase 4 (Generation)
+stopped_at: Phase 4 planned (2 plans, 2 waves); ready to execute
 last_updated: "2026-08-27T00:00:00Z"
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 8
+  total_plans: 10
   completed_plans: 7
-  percent: 64
+  percent: 50
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -20,12 +20,12 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 4 — Generation
+**Current focus:** Phase 4 — Generation (planned, ready to execute)
 
 ## Current Phase
 
-**Phase 4: Generation — Not started; ready to plan**
-Status: Phase 3 complete (03-01 and 03-02 both executed); exclusion filters, routing, and brief assembly all done
+**Phase 4: Generation — Planned, ready to execute**
+Status: 04-01 (realtime path) and 04-02 (batch path) plans written; 2 waves
 
 ## Phase History
 
@@ -34,7 +34,7 @@ Status: Phase 3 complete (03-01 and 03-02 both executed); exclusion filters, rou
 | 1 | Complete | 01-01, 01-02, 01-03 all complete |
 | 2 | Complete | 02-01 complete (fetch_list.py); 02-02 complete (fetch_record.py skeleton + 6 fetch functions); 02-03 complete (resolve_geo, departure check, D-13 assembly); live-run checkpoint deferred to pilot |
 | 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
-| 4 | Not started | Generation |
+| 4 | Planned | 2 plans in 2 waves; 04-01 (realtime API + passing_ids.json), 04-02 (Batch API toggle) |
 | 5 | Not started | Lint & Body Assembly |
 | 6 | Not started | Write-back |
 | 7 | Not started | CI/CD |
@@ -82,5 +82,5 @@ Status: Phase 3 complete (03-01 and 03-02 both executed); exclusion filters, rou
 ## Last Session
 
 - **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 3 complete; both plans executed and committed
-- **Resume file:** .planning/phases/04-generation/ (Phase 4 not yet planned)
+- **Stopped at:** Phase 4 planned; 04-01-PLAN.md and 04-02-PLAN.md written and committed
+- **Resume file:** .planning/phases/04-generation/04-01-PLAN.md (Wave 1; execute this first)

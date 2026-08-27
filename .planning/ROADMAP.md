@@ -9,7 +9,7 @@
 | 3 | Exclusion & Routing | Exclusion filters E1–E6, vertical routing, close bank, brief assembly | EXCL-01–07, ROUTE-01–05 | 5 |
 | 4 | Generation | Claude API call with cached system prompt, 8-deliverable output | GEN-01–07 | 4 |
 | 5 | Lint & Assembly | 18-check lint engine, soft warnings, review sample, link placeholder append | LINT-01–05, ASSEM-01–03 | 5 |
-| 6 | Write-back | 12 contact properties (10 email + 2 task notes), 1 pinned note, bracket guard | WRITE-01–05, ERR-01–02 | 5 |
+| 6 | Write-back | 1/2 | In Progress|  |
 | 7 | CI/CD | GitHub Actions workflow, pilot mode, artifacts, failure handling | CI-01–06, ERR-03–04 | 5 |
 
 ---
@@ -143,12 +143,12 @@ Plans:
 
 **Requirements:** WRITE-01–05, ERR-01–02
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
-- [ ] 06-01-PLAN.md — Create write_hubspot.py: property schema check, bracket guard, batch property write (WRITE-01, WRITE-02, WRITE-03, WRITE-05, ERR-01, ERR-02)
+- [x] 06-01-PLAN.md — Create write_hubspot.py: property schema check, bracket guard, batch property write (WRITE-01, WRITE-02, WRITE-03, WRITE-05, ERR-01, ERR-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 06-02-PLAN.md — Add note creation + pin with manual fallback to write_hubspot.py (WRITE-04)

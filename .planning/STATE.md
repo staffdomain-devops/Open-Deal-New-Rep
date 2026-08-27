@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: Phase 6 planned (2 plans, 2 waves); ready to execute
-last_updated: "2026-08-27T00:00:00Z"
+stopped_at: "06-01 complete (write_hubspot.py); 06-02 (note + pin) next"
+last_updated: "2026-08-27T02:34:38Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 14
-  completed_plans: 11
-  percent: 79
+  completed_plans: 12
+  percent: 86
 ---
 
 # State — Lane A Owner-Changed Re-Engagement Pipeline
@@ -24,8 +24,8 @@ See: `.planning/PROJECT.md` (updated 2026-08-21)
 
 ## Current Phase
 
-**Phase 6: Write-back — Planned, ready to execute**
-Status: 06-01 (property schema check + bracket guard + batch write) and 06-02 (note creation + pin) plans written; 2 waves
+**Phase 6: Write-back — In progress**
+Status: 06-01 complete (write_hubspot.py); 06-02 (note creation + pin) next
 
 ## Phase History
 
@@ -36,7 +36,7 @@ Status: 06-01 (property schema check + bracket guard + batch write) and 06-02 (n
 | 3 | Complete | 03-01 (exclusion filters E1–E6 + exclusion_report.json), 03-02 (routing + §3.7 brief assembly + brief_{id}.json) |
 | 4 | Complete | 04-01 (passing_ids.json + realtime path), 04-02 (batch path: submit/poll/process) |
 | 5 | Complete | 05-01 (lint engine: 18 hard + 5 soft checks), 05-02 (assemble_bodies.py) |
-| 6 | Planned | 2 plans in 2 waves; 06-01 (schema check + bracket guard + batch write), 06-02 (note + pin) |
+| 6 | In progress | 06-01 complete (write_hubspot.py: schema check + bracket guard + batch write); 06-02 (note + pin) pending |
 | 7 | Not started | CI/CD |
 
 ## Open Questions
@@ -68,6 +68,8 @@ Status: 06-01 (property schema check + bracket guard + batch write) and 06-02 (n
 | 2026-08-21 | resolve_geo returns "UNRESOLVED" string (not null) | Phase 3 exclusion filter can match on exact value without null checks |
 | 2026-08-21 | is_only_contact fallback: empty all_company_contacts → True | Conservative overstatement; Phase 3 brief says "only contact" which is safe |
 | 2026-08-21 | json.dump uses default=str for non-serialisable types | Handles HubSpot SDK datetime objects; no partial write on failure (D-15) |
+| 2026-08-27 | _check_property_schema not decorated with @retry | Wrong field_type is a config error, not transient; sys.exit(1) before any write |
+| 2026-08-27 | EMAIL_PROP_NAMES derived from PROPERTY_MAP via startswith filter | Single source of truth; no separate list to maintain alongside PROPERTY_MAP |
 
 ## Performance Metrics
 
@@ -80,9 +82,10 @@ Status: 06-01 (property schema check + bracket guard + batch write) and 06-02 (n
 | 03 | 02 | 5 min | 3 | 1 |
 | 04 | 01 | 5 min | 2 | 2 |
 | 04 | 02 | 2 min | 1 | 1 |
+| 06 | 01 | 2 min | 1 | 1 |
 
 ## Last Session
 
-- **Timestamp:** 2026-08-27T00:00:00Z
-- **Stopped at:** Phase 6 planned; 06-01-PLAN.md and 06-02-PLAN.md written and committed
-- **Resume file:** .planning/phases/06-write-back/06-01-PLAN.md (Wave 1; execute this first)
+- **Timestamp:** 2026-08-27T02:34:38Z
+- **Stopped at:** 06-01 complete (write_hubspot.py: schema check, bracket guard, batch write, DLQ)
+- **Resume file:** .planning/phases/06-write-back/06-02-PLAN.md

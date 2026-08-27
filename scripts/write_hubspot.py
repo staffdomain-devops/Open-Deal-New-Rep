@@ -89,7 +89,16 @@ def _bracket_guard(assembled: dict) -> None:
     for prop_name, (top_key, field) in PROPERTY_MAP:
         if prop_name not in EMAIL_PROP_NAMES:
             continue
-        value = assembled[top_key][field]
+        section = assembled.get(top_key)
+        if section is None:
+            raise ValueError(
+                f"Bracket guard: missing top-level key '{top_key}' in assembled JSON"
+            )
+        value = section.get(field)
+        if value is None:
+            raise ValueError(
+                f"Bracket guard: missing field '{field}' under '{top_key}'"
+            )
         if "[" in value:
             raise ValueError(
                 f"Bracket guard: unresolved placeholder in '{prop_name}' for contact "

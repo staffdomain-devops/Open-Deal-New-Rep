@@ -143,6 +143,16 @@ Plans:
 
 **Requirements:** WRITE-01–05, ERR-01–02
 
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 06-01-PLAN.md — Create write_hubspot.py: property schema check, bracket guard, batch property write (WRITE-01, WRITE-02, WRITE-03, WRITE-05, ERR-01, ERR-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 06-02-PLAN.md — Add note creation + pin with manual fallback to write_hubspot.py (WRITE-04)
+
 **Success Criteria:**
 1. On first run, script checks all 12 properties exist as multi-line text type; aborts with clear error if any is wrong type
 2. Bracket guard scans all 10 email property values before write; raises error if `[` found; task_note properties are internal-only and exempt

@@ -23,6 +23,7 @@ jobs:
       ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"
       TEAMS_WEBHOOK_URL: "${{ secrets.TEAMS_WEBHOOK_URL }}"
       PILOT_MODE: "${{ github.event.inputs.pilot_mode }}"
+      PYTHONPATH: "${{ github.workspace }}"
 
     steps:
       - name: Checkout

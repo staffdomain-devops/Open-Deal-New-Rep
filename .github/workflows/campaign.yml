@@ -1,0 +1,144 @@
+name: Campaign Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      list_id:
+        description: HubSpot list ID to process
+        required: true
+        type: string
+      pilot_mode:
+        description: Cap processing at 20 contacts
+        required: false
+        type: boolean
+        default: true
+
+env:
+  INPUT_LIST_ID: ${{ github.event.inputs.list_id }}
+  INPUT_USE_BATCH_API: "false"
+  HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: fetch-list
+        working-directory: scripts
+        run: python fetch_list.py
+
+      - name: pilot-mode-cap
+        env:
+          PILOT_MODE: ${{ github.event.inputs.pilot_mode }}
+        run: |
+          python -c "
+          import json, os, sys
+          runner_temp = os.environ.get('RUNNER_TEMP', '.')
+          ids_path = os.path.join(runner_temp, 'contact_ids.json')
+          with open(ids_path) as f:
+              ids = json.load(f)
+          original = len(ids)
+          pilot = os.environ.get('PILOT_MODE', 'true').lower()
+          if pilot == 'true' and original > 20:
+              ids = ids[:20]
+              print(f'PILOT MODE: capping {original} contacts to 20')
+              with open(ids_path, 'w') as f:
+                  json.dump(ids, f)
+          print(f'Processing {len(ids)} contacts')
+          "
+
+      - name: fetch-records
+        working-directory: scripts
+        run: python fetch_record.py
+
+      - name: exclude-and-route
+        working-directory: scripts
+        run: python exclude_and_route.py
+
+      - name: generate-campaign
+        working-directory: scripts
+        run: python generate_campaign.py
+
+      - name: lint
+        working-directory: scripts
+        run: python lint.py
+
+      - name: assemble-bodies
+        working-directory: scripts
+        run: python assemble_bodies.py
+
+      - name: assemble-output
+        working-directory: scripts
+        run: python assemble_output.py
+
+      - name: write-hubspot
+        working-directory: scripts
+        run: python write_hubspot.py
+
+      - name: upload-exclusion-report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exclusion-report
+          path: ${{ runner.temp }}/exclusion_report.json
+          if-no-files-found: warn
+
+      - name: upload-review-sample
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-sample
+          path: ${{ runner.temp }}/review_sample.json
+          if-no-files-found: warn
+
+      - name: upload-campaign-output
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: campaign-output
+          path: ${{ runner.temp }}/campaign_output.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: upload-failed-contacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failed-contacts
+          path: ${{ runner.temp }}/failed_contacts.json
+          if-no-files-found: warn
+
+      - name: notify-teams
+        if: failure()
+        env:
+          LIST_ID: ${{ github.event.inputs.list_id }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          PAYLOAD=$(python -c "
+          import json, os
+          list_id = os.environ.get('LIST_ID', 'unknown')
+          run_url = os.environ.get('RUN_URL', '')
+          payload = {
+              'text': f'Campaign pipeline FAILED. list_id={list_id}. See run: {run_url}',
+              'list_id': list_id,
+              'failed_step': 'see run log',
+              'run_url': run_url
+          }
+          print(json.dumps(payload))
+          ")
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"

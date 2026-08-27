@@ -11,12 +11,15 @@ Usage:
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 import hubspot
 from hubspot.crm.contacts import (
     BatchInputSimplePublicObjectBatchInput,
     SimplePublicObjectBatchInput,
+    SimplePublicObjectInput,
 )
+from hubspot.crm.objects.notes import SimplePublicObjectInputForCreate
 from tenacity import retry
 
 from utils import write_dlq, HS_RETRY_KWARGS
@@ -121,6 +124,70 @@ def _write_properties_batch(client, batch_inputs: list) -> None:
     )
 
 
+@retry(**HS_RETRY_KWARGS)
+def _create_note(client, contact_id: str, body: str) -> str:
+    """Create a HubSpot note with the given body and associate it with the contact.
+
+    Decorated with @retry(**HS_RETRY_KWARGS) — transient 429/5xx errors are
+    retried with exponential backoff + HubSpot Retry-After header.
+
+    Returns the note_id string.
+    """
+    note_input = SimplePublicObjectInputForCreate(
+        properties={
+            "hs_note_body": body,
+            "hs_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    response = client.crm.objects.notes.basic_api.create(
+        simple_public_object_input_for_create=note_input
+    )
+    note_id = response.id
+
+    client.crm.objects.notes.associations_api.create(
+        note_id=note_id,
+        to_object_type="contacts",
+        to_object_id=contact_id,
+        association_type="note_to_contact",
+    )
+
+    return str(note_id)
+
+
+def _pin_note(contact_id: str, note_id: str, client) -> bool:
+    """Attempt to pin a note on the contact via hs_pinned_engagement_id.
+
+    NOT decorated with @retry — pin failure is a soft fallback, not a retriable
+    error. On success returns True. On any Exception, appends
+    {"contact_id": str, "note_id": str} to manual_pin_list.json in RUNNER_TEMP
+    using read-modify-write, prints a warning to stderr, and returns False.
+    """
+    try:
+        client.crm.contacts.basic_api.update(
+            contact_id=contact_id,
+            simple_public_object_input=SimplePublicObjectInput(
+                properties={"hs_pinned_engagement_id": str(note_id)}
+            ),
+        )
+        return True
+    except Exception as exc:  # noqa: BLE001
+        manual_pin_path = os.path.join(RUNNER_TEMP, "manual_pin_list.json")
+        try:
+            with open(manual_pin_path, encoding="utf-8") as f:
+                pin_list = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pin_list = []
+        pin_list.append({"contact_id": str(contact_id), "note_id": str(note_id)})
+        with open(manual_pin_path, "w", encoding="utf-8") as f:
+            json.dump(pin_list, f, indent=2)
+        print(
+            f"WARNING: pin failed for contact {contact_id} / note {note_id}: {exc}. "
+            f"Added to manual_pin_list.json.",
+            file=sys.stderr,
+        )
+        return False
+
+
 def main() -> None:
     # Step 1: Load lint_passing_ids.json
     ids_path = os.path.join(RUNNER_TEMP, "lint_passing_ids.json")
@@ -161,8 +228,11 @@ def main() -> None:
                 written_count += len(pending_batch)
                 pending_batch = []
 
+            note_id = _create_note(client, str(cid), assembled["pin"]["body"])
+            _pin_note(str(cid), note_id, client)
+
         except Exception as exc:
-            write_dlq(cid, assembled.get("contact_id", str(cid)), "write_properties", str(exc), 0)
+            write_dlq(cid, assembled.get("contact_id", str(cid)), "write_properties_or_note", str(exc), 0)
             error_count += 1
             print(f"ERROR {cid}: {exc}", file=sys.stderr)
             continue

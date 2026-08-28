@@ -34,18 +34,18 @@ BATCH_SIZE = 100
 
 # Ordered list of (hubspot_property_name, (top_key, field)) for all 12 properties.
 PROPERTY_MAP = [
-    ("email_1_subject", ("e1", "subject")),
-    ("email_1_body",    ("e1", "body")),
-    ("email_2_subject", ("e2", "subject")),
-    ("email_2_body",    ("e2", "body")),
-    ("email_3_subject", ("e3", "subject")),
-    ("email_3_body",    ("e3", "body")),
-    ("email_4_subject", ("e4", "subject")),
-    ("email_4_body",    ("e4", "body")),
-    ("email_5_subject", ("e5", "subject")),
-    ("email_5_body",    ("e5", "body")),
-    ("task_note_1",     ("call1", "body")),
-    ("task_note_2",     ("call2", "body")),
+    ("subject_1",   ("e1", "subject")),
+    ("email_1",     ("e1", "body")),
+    ("subject_2",   ("e2", "subject")),
+    ("email_2",     ("e2", "body")),
+    ("subject_3",   ("e3", "subject")),
+    ("email_3",     ("e3", "body")),
+    ("subject_4",   ("e4", "subject")),
+    ("email_4",     ("e4", "body")),
+    ("subject_5",   ("e5", "subject")),
+    ("email_5",     ("e5", "body")),
+    ("task_note_1", ("call1", "body")),
+    ("task_note_2", ("call2", "body")),
 ]
 
 # Frozenset of the 10 email property names only; task_note_1 and task_note_2
@@ -53,7 +53,7 @@ PROPERTY_MAP = [
 EMAIL_PROP_NAMES = frozenset(
     prop_name
     for prop_name, _ in PROPERTY_MAP
-    if prop_name.startswith("email_")
+    if prop_name.startswith("email_") or prop_name.startswith("subject_")
 )
 
 

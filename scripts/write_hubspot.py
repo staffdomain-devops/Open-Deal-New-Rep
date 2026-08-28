@@ -10,6 +10,7 @@ Usage:
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -56,6 +57,11 @@ EMAIL_PROP_NAMES = frozenset(
     if prop_name.startswith("email_") or prop_name.startswith("subject_")
 )
 
+# Intentional bracket patterns that must NOT trigger the bracket guard:
+#   [Rep first name]  — sign-off placeholder (lint H07 requires it)
+#   [Insert ... ]     — link placeholders appended by assemble_bodies.py
+_ALLOWED_BRACKETS_RE = re.compile(r"\[Rep first name\]|\[Insert [^\]]+\]")
+
 
 # ---------------------------------------------------------------------------
 # Functions
@@ -99,7 +105,7 @@ def _bracket_guard(assembled: dict) -> None:
             raise ValueError(
                 f"Bracket guard: missing field '{field}' under '{top_key}'"
             )
-        if "[" in value:
+        if "[" in _ALLOWED_BRACKETS_RE.sub("", value):
             raise ValueError(
                 f"Bracket guard: unresolved placeholder in '{prop_name}' for contact "
                 f"{assembled.get('contact_id')}. Value starts: {value[:80]!r}"
@@ -163,7 +169,7 @@ def _associate_note(client, note_id: str, contact_id: str) -> None:
         note_id=note_id,
         to_object_type="contacts",
         to_object_id=contact_id,
-        association_type="note_to_contact",
+        association_type="202",
     )
 
 

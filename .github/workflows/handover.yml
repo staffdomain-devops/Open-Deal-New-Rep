@@ -6,16 +6,25 @@ name: Contact Handover Pipeline
 #   https://api.github.com/repos/<owner>/<repo>/dispatches
 # with an "Authorization: Bearer <PAT>" header and body:
 #   {"event_type": "contact-handover", "client_payload": {"contact_id": "<id>"}}
+#
+# The workflow_dispatch trigger below is for manual testing only (Actions tab
+# > Contact Handover Pipeline > Run workflow) — it is not used by HubSpot.
 
 on:
   repository_dispatch:
     types: [contact-handover]
+  workflow_dispatch:
+    inputs:
+      contact_id:
+        description: "HubSpot contact ID to run the pipeline for (manual testing)"
+        required: true
+        type: string
 
 jobs:
   run:
     runs-on: ubuntu-latest
     env:
-      INPUT_CONTACT_ID: "${{ github.event.client_payload.contact_id }}"
+      INPUT_CONTACT_ID: "${{ github.event.client_payload.contact_id || github.event.inputs.contact_id }}"
       HUBSPOT_API_KEY: "${{ secrets.HUBSPOT_API_KEY }}"
       ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"
       TEAMS_WEBHOOK_URL: "${{ secrets.TEAMS_WEBHOOK_URL }}"
@@ -66,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: research-output-${{ github.event.client_payload.contact_id }}
+          name: research-output-${{ env.INPUT_CONTACT_ID }}
           path: "${{ runner.temp }}/research_*.json"
           if-no-files-found: warn
 
@@ -74,7 +83,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: generated-output-${{ github.event.client_payload.contact_id }}
+          name: generated-output-${{ env.INPUT_CONTACT_ID }}
           path: |
             ${{ runner.temp }}/generated_*.json
             ${{ runner.temp }}/assembled_*.json
@@ -84,7 +93,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: failed-contact-${{ github.event.client_payload.contact_id }}
+          name: failed-contact-${{ env.INPUT_CONTACT_ID }}
           path: "${{ runner.temp }}/failed_contacts.json"
           if-no-files-found: warn
 

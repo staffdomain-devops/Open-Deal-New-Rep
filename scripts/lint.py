@@ -1,7 +1,7 @@
-"""lint.py — Lint engine for Lane A re-engagement pipeline.
+"""lint.py — Lint engine for the Lane A re-engagement pipeline (single contact).
 
 Usage:
-    python scripts/lint.py
+    python scripts/lint.py <contact_id>
 """
 
 import json
@@ -10,7 +10,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
-from generate_campaign import (
+from agent2_build import (
     MaxTokensError,
     OutputParseError,
     _call_realtime,
@@ -88,7 +88,7 @@ def _all_email_text(generated: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Hard check functions H01–H12 (v1.0 spec §7.1)
+# Hard check functions H01-H12 (v1.0 spec §7.1)
 # Each returns (failed: bool, reason: str)
 # ---------------------------------------------------------------------------
 
@@ -140,15 +140,15 @@ def check_h05(generated: dict) -> tuple:
             return (True, f"H05: {key} subject is {len(subj)} chars (max 45)")
         word_count = len(subj.split())
         if word_count < 2 or word_count > 7:
-            return (True, f"H05: {key} subject has {word_count} words (must be 2–7)")
+            return (True, f"H05: {key} subject has {word_count} words (must be 2-7)")
         if subj.strip().lower().startswith("just"):
             return (True, f"H05: {key} subject starts with 'just'")
     return (False, "")
 
 
-def check_h06(generated: dict, brief: dict) -> tuple:
-    email3_url = brief.get("email3_url", "")
-    email4_url = brief.get("email4_url", "")
+def check_h06(generated: dict, research: dict) -> tuple:
+    email3_url = research.get("email3_url", "")
+    email4_url = research.get("email4_url", "")
     for key in ("e1", "e2", "e5"):
         urls = URL_REGEX.findall(generated[key].get("body", ""))
         if urls:
@@ -177,7 +177,7 @@ def check_h08(generated: dict) -> tuple:
         body = generated[key].get("body", "")
         wc = _count_words(body)
         if wc < WORD_COUNT_MIN or wc > WORD_COUNT_MAX:
-            return (True, f"H08: {key} body has {wc} words (must be {WORD_COUNT_MIN}–{WORD_COUNT_MAX})")
+            return (True, f"H08: {key} body has {wc} words (must be {WORD_COUNT_MIN}-{WORD_COUNT_MAX})")
     return (False, "")
 
 
@@ -192,32 +192,13 @@ def check_h09(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_h10(generated: dict, contact_record: dict) -> tuple:
-    props = contact_record.get("contact_props", {})
-    company_props = contact_record.get("company_props", {})
-    handover = contact_record.get("handover") or {}
-    colleagues = contact_record.get("all_company_contacts", [])
-
-    allowed = set()
-    for field in ("firstname", "lastname"):
-        v = props.get(field)
-        if v:
-            allowed.add(v.lower())
-    if handover.get("first_name"):
-        allowed.add(handover["first_name"].lower())
-    for c in colleagues:
-        v = c.get("firstname")
-        if v:
-            allowed.add(v.lower())
-    company_name = company_props.get("name") or ""
-    for word in company_name.split():
-        allowed.add(word.lower())
+def check_h10(generated: dict, research: dict) -> tuple:
+    allowed = set(research.get("allowed_names", []))
 
     combined_email_text = " ".join(
         generated[k].get("body", "") + " " + generated[k].get("subject", "")
         for k in EMAIL_KEYS
     )
-    # Find title-case words preceded by a lowercase character (mid-sentence names)
     pattern = re.compile(r"(?<=[a-z]\s)([A-Z][a-z]{1,})")
     for match in pattern.finditer(combined_email_text):
         word = match.group(1)
@@ -235,8 +216,8 @@ def check_h11(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_h12(generated: dict, contact_record: dict) -> tuple:
-    sensitive = contact_record.get("sensitive_items") or []
+def check_h12(generated: dict, research: dict) -> tuple:
+    sensitive = research.get("sensitive_items") or []
     if not sensitive:
         return (False, "")
     stopwords = {"the", "and", "for", "was", "had", "with", "from", "that", "this", "they"}
@@ -253,7 +234,7 @@ def check_h12(generated: dict, contact_record: dict) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Hard check functions H13–H18 (v1.1 amendments)
+# Hard check functions H13-H18 (v1.1 amendments)
 # ---------------------------------------------------------------------------
 
 
@@ -289,8 +270,8 @@ def check_h15(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_h16(generated: dict, contact_record: dict) -> tuple:
-    sensitive = contact_record.get("sensitive_items") or []
+def check_h16(generated: dict, research: dict) -> tuple:
+    sensitive = research.get("sensitive_items") or []
     if not sensitive:
         return (False, "")
     for key in CALL_KEYS:
@@ -299,8 +280,8 @@ def check_h16(generated: dict, contact_record: dict) -> tuple:
     return (True, "H16: sensitive items present but no DO NOT SAY line found in call notes")
 
 
-def check_h17(generated: dict, contact_record: dict) -> tuple:
-    geo = contact_record.get("geo", "AU")
+def check_h17(generated: dict, research: dict) -> tuple:
+    geo = research.get("geo", "AU")
     if geo not in ("US", "UK"):
         return (False, "")
     email_text = _all_email_text(generated).lower()
@@ -316,7 +297,8 @@ def check_h18(generated: dict) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Soft warning functions W01–W05
+# Soft warning functions W01-W04 (W05 cross-contact check dropped — no longer
+# meaningful when each contact runs in an isolated invocation)
 # ---------------------------------------------------------------------------
 
 
@@ -353,9 +335,9 @@ def check_w03(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_w04(generated: dict, brief: dict) -> tuple:
+def check_w04(generated: dict, research: dict) -> tuple:
     for key, url_field in [("e3", "email3_url"), ("e4", "email4_url")]:
-        url = brief.get(url_field, "")
+        url = research.get(url_field, "")
         if not url:
             continue
         body = generated[key].get("body", "")
@@ -368,48 +350,30 @@ def check_w04(generated: dict, brief: dict) -> tuple:
     return (False, "")
 
 
-def check_w05(generated: dict, seen_subjects: dict, contact_id: str) -> tuple:
-    for key in EMAIL_KEYS:
-        subj = generated[key].get("subject", "")
-        if subj in seen_subjects and seen_subjects[subj] != contact_id:
-            return (True, f"W05: {key} subject '{subj}' duplicates contact {seen_subjects[subj]}")
-        seen_subjects[subj] = contact_id
-    return (False, "")
-
-
 # ---------------------------------------------------------------------------
 # Orchestrator
 # ---------------------------------------------------------------------------
 
 
-def run_lint(
-    generated: dict,
-    brief: dict,
-    contact_record: dict,
-    seen_subjects: dict = None,
-) -> tuple:
-    if seen_subjects is None:
-        seen_subjects = {}
-    contact_id = generated.get("contact_id", "")
-
+def run_lint(generated: dict, research: dict) -> tuple:
     hard_checks = [
         lambda: check_h01(generated),
         lambda: check_h02(generated),
         lambda: check_h03(generated),
         lambda: check_h04(generated),
         lambda: check_h05(generated),
-        lambda: check_h06(generated, brief),
+        lambda: check_h06(generated, research),
         lambda: check_h07(generated),
         lambda: check_h08(generated),
         lambda: check_h09(generated),
-        lambda: check_h10(generated, contact_record),
+        lambda: check_h10(generated, research),
         lambda: check_h11(generated),
-        lambda: check_h12(generated, contact_record),
+        lambda: check_h12(generated, research),
         lambda: check_h13(generated),
         lambda: check_h14(generated),
         lambda: check_h15(generated),
-        lambda: check_h16(generated, contact_record),
-        lambda: check_h17(generated, contact_record),
+        lambda: check_h16(generated, research),
+        lambda: check_h17(generated, research),
         lambda: check_h18(generated),
     ]
 
@@ -424,8 +388,7 @@ def run_lint(
         lambda: check_w01(generated),
         lambda: check_w02(generated),
         lambda: check_w03(generated),
-        lambda: check_w04(generated, brief),
-        lambda: check_w05(generated, seen_subjects, contact_id),
+        lambda: check_w04(generated, research),
     ]
     for fn in warn_checks:
         warned, reason = fn()
@@ -436,41 +399,14 @@ def run_lint(
 
 
 # ---------------------------------------------------------------------------
-# Review sample helper
-# ---------------------------------------------------------------------------
-
-
-def _write_to_review_sample(
-    contact_id: str,
-    generated: dict,
-    reasons: list,
-    out_path: str,
-) -> None:
-    try:
-        with open(out_path, encoding="utf-8") as f:
-            sample = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        sample = []
-    entry = {
-        "contact_id": contact_id,
-        "reasons": reasons,
-        "subjects": {k: generated[k].get("subject", "") for k in EMAIL_KEYS},
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    }
-    sample.append(entry)
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(sample, f, indent=2)
-
-
-# ---------------------------------------------------------------------------
 # Regeneration wrapper
 # ---------------------------------------------------------------------------
 
 
-def _regenerate_contact(contact_id: str, brief: dict) -> dict:
-    response = _call_realtime(brief["brief_text"])
+def _regenerate_contact(contact_id: str, research: dict) -> dict:
+    response = _call_realtime(research["brief_text"])
     parsed = parse_output(response, contact_id)
-    write_generated(contact_id, parsed, brief)
+    write_generated(contact_id, parsed, research)
     return parsed
 
 
@@ -480,77 +416,59 @@ def _regenerate_contact(contact_id: str, brief: dict) -> dict:
 
 
 def main():
-    ids_path = os.path.join(RUNNER_TEMP, "passing_ids.json")
-    with open(ids_path) as f:
-        contact_ids = json.load(f)
+    contact_id = sys.argv[1] if len(sys.argv) >= 2 else os.environ.get("INPUT_CONTACT_ID")
+    if not contact_id:
+        print("ERROR: contact_id not provided (argv[1] or INPUT_CONTACT_ID).", file=sys.stderr)
+        sys.exit(1)
 
-    review_path = os.path.join(RUNNER_TEMP, "review_sample.json")
-    write_dlq("batch", "", "startup", "sentinel", 0)
+    gen_path = os.path.join(RUNNER_TEMP, f"generated_{contact_id}.json")
+    research_path = os.path.join(RUNNER_TEMP, f"research_{contact_id}.json")
 
-    seen_subjects: dict = {}
-    lint_passing: list = []
-    pass_counter = 0
+    with open(gen_path, encoding="utf-8") as f:
+        generated = json.load(f)
+    with open(research_path, encoding="utf-8") as f:
+        research = json.load(f)
 
-    for cid in contact_ids:
-        gen_path = os.path.join(RUNNER_TEMP, f"generated_{cid}.json")
-        brief_path = os.path.join(RUNNER_TEMP, f"brief_{cid}.json")
-        record_path = os.path.join(RUNNER_TEMP, f"contact_{cid}.json")
+    write_dlq(contact_id, "", "startup", "sentinel", 0)
 
-        if not os.path.exists(gen_path) or not os.path.exists(brief_path):
-            continue
-        if not os.path.exists(record_path):
-            continue
+    try:
+        hard_failures, soft_warnings = run_lint(generated, research)
 
-        try:
-            with open(gen_path, encoding="utf-8") as f:
-                generated = json.load(f)
-            with open(brief_path, encoding="utf-8") as f:
-                brief = json.load(f)
-            with open(record_path, encoding="utf-8") as f:
-                contact_record = json.load(f)
+        if hard_failures:
+            print(f"LINT FAIL (attempt 1) {contact_id}: {hard_failures[0]}", file=sys.stderr)
+            try:
+                generated = _regenerate_contact(contact_id, research)
+                hard_failures, soft_warnings = run_lint(generated, research)
+            except (MaxTokensError, OutputParseError) as exc:
+                write_dlq(contact_id, "", "lint_regenerate", str(exc), 0)
+                print(f"REGEN FAIL {contact_id}: {exc}", file=sys.stderr)
+                sys.exit(1)
 
-            hard_failures, soft_warnings = run_lint(
-                generated, brief, contact_record, seen_subjects
-            )
+        if hard_failures:
+            write_dlq(contact_id, "", "lint_hard_fail", "; ".join(hard_failures), 0)
+            print(f"LINT FAIL (attempt 2, flagged) {contact_id}: {hard_failures[0]}", file=sys.stderr)
+            sys.exit(1)
 
-            if hard_failures:
-                print(f"LINT FAIL (attempt 1) {cid}: {hard_failures[0]}", file=sys.stderr)
-                try:
-                    generated = _regenerate_contact(cid, brief)
-                    hard_failures, soft_warnings = run_lint(
-                        generated, brief, contact_record, seen_subjects
-                    )
-                except (MaxTokensError, OutputParseError) as exc:
-                    write_dlq(cid, "", "lint_regenerate", str(exc), 0)
-                    print(f"REGEN FAIL {cid}: {exc}", file=sys.stderr)
-                    continue
+        if soft_warnings:
+            review_path = os.path.join(RUNNER_TEMP, "review_sample.json")
+            entry = {
+                "contact_id": contact_id,
+                "reasons": soft_warnings,
+                "subjects": {k: generated[k].get("subject", "") for k in EMAIL_KEYS},
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            with open(review_path, "w", encoding="utf-8") as f:
+                json.dump([entry], f, indent=2)
+            print(f"Lint passed with soft warnings: {soft_warnings}")
+        else:
+            print(f"Lint passed cleanly for {contact_id}")
 
-            if hard_failures:
-                write_dlq(cid, "", "lint_hard_fail", "; ".join(hard_failures), 0)
-                print(
-                    f"LINT FAIL (attempt 2, flagged) {cid}: {hard_failures[0]}",
-                    file=sys.stderr,
-                )
-                continue
-
-            lint_passing.append(cid)
-            pass_counter += 1
-
-            if soft_warnings:
-                _write_to_review_sample(cid, generated, soft_warnings, review_path)
-            elif pass_counter % 10 == 0:
-                _write_to_review_sample(cid, generated, ["Nth sample"], review_path)
-
-        except Exception as exc:
-            write_dlq(cid, "", "lint_unexpected", str(exc), 0)
-            print(f"ERROR lint {cid}: {exc}", file=sys.stderr)
-
-    passing_path = os.path.join(RUNNER_TEMP, "lint_passing_ids.json")
-    with open(passing_path, "w", encoding="utf-8") as f:
-        json.dump(lint_passing, f, indent=2)
-    print(
-        f"Lint complete: {len(lint_passing)}/{len(contact_ids)} passed. Written {passing_path}"
-    )
+    except SystemExit:
+        raise
+    except Exception as exc:
+        write_dlq(contact_id, "", "lint_unexpected", str(exc), 0)
+        print(f"ERROR lint {contact_id}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Five options locked to JP's exact wording (spec §5.3). Assignment priority from
 Source: SD_Reengagement_LaneA_Build_Spec.md §3.7 + §5.3
 """
 
+import random
 from typing import Tuple
 
 
@@ -18,10 +19,6 @@ CLOSE_BANK: dict[int, str] = {
     4: "Nothing more to this than putting a name to the new face on your account. We'll catch up properly at some stage down the track, I'm sure.",
     5: "Getting my bearings on everything at the moment more than anything else. Once I'm across it all properly we can have more of a chat when the time suits.",
 }
-
-# Module-level rotation counter. Stored as a single-element list so the function
-# can mutate it without the `global` keyword.
-_close_counter: list[int] = [0]
 
 # C-suite title tokens for option 4 assignment (case-insensitive substring match).
 _CSUITE_TOKENS = ["CEO", "MD", "COO", "CFO", "Partner", "Principal", "Director"]
@@ -38,7 +35,11 @@ def assign_close(
         1. touches >= 30  -> option 3
         2. C-suite title  -> option 4 (substring match, case-insensitive)
         3. exact industry match -> option 5
-        4. fallback: rotate 1 -> 2 -> 1 -> 2
+        4. fallback: random choice between 1 and 2
+
+    Each contact is now processed in its own isolated run (no shared batch
+    process), so the fallback can no longer alternate via a persistent
+    counter. A random pick between 1 and 2 replaces the old 1->2 rotation.
 
     Args:
         touches: Number of contact touches (e.g. num_contacted_notes).
@@ -62,8 +63,6 @@ def assign_close(
     if industry_match_strength == "exact":
         return (5, CLOSE_BANK[5])
 
-    # Fallback: rotate between options 1 and 2
-    # _close_counter[0] == 0 -> option 1; == 1 -> option 2
-    option_number = 1 + _close_counter[0]  # 0 -> 1, 1 -> 2
-    _close_counter[0] = (_close_counter[0] + 1) % 2
+    # Fallback: random choice between options 1 and 2
+    option_number = random.choice([1, 2])
     return (option_number, CLOSE_BANK[option_number])

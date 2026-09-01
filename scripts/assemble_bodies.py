@@ -1,7 +1,7 @@
 """assemble_bodies.py — Append link placeholders to E2 and E5 email bodies.
 
 Usage:
-    python scripts/assemble_bodies.py
+    python scripts/assemble_bodies.py <contact_id>
 """
 
 import json
@@ -18,50 +18,42 @@ def _append_placeholder(body: str, placeholder: str) -> str:
 
 
 def main():
-    ids_path = os.path.join(RUNNER_TEMP, "lint_passing_ids.json")
-    with open(ids_path) as f:
-        contact_ids = json.load(f)
+    contact_id = sys.argv[1] if len(sys.argv) >= 2 else os.environ.get("INPUT_CONTACT_ID")
+    if not contact_id:
+        print("ERROR: contact_id not provided (argv[1] or INPUT_CONTACT_ID).", file=sys.stderr)
+        sys.exit(1)
 
-    write_dlq("batch", "", "startup", "sentinel", 0)
+    gen_path = os.path.join(RUNNER_TEMP, f"generated_{contact_id}.json")
+    write_dlq(contact_id, "", "startup", "sentinel", 0)
 
-    assembled_count = 0
-    total = len(contact_ids)
+    try:
+        with open(gen_path, encoding="utf-8") as f:
+            generated = json.load(f)
 
-    for cid in contact_ids:
-        gen_path = os.path.join(RUNNER_TEMP, f"generated_{cid}.json")
-        if not os.path.exists(gen_path):
-            print(f"SKIP {cid}: generated file not found", file=sys.stderr)
-            continue
+        assembled = {k: v for k, v in generated.items()}
+        assembled["e2"] = dict(generated["e2"])
+        assembled["e5"] = dict(generated["e5"])
 
-        try:
-            with open(gen_path, encoding="utf-8") as f:
-                generated = json.load(f)
+        case_study = generated.get("case_study", "case study")
+        assembled["e2"]["body"] = _append_placeholder(
+            generated["e2"]["body"],
+            f"[Insert {case_study} case study link here]",
+        )
+        assembled["e5"]["body"] = _append_placeholder(
+            generated["e5"]["body"],
+            "[Insert rep booking link here]",
+        )
 
-            assembled = {k: v for k, v in generated.items()}
-            assembled["e2"] = dict(generated["e2"])
-            assembled["e5"] = dict(generated["e5"])
+        out_path = os.path.join(RUNNER_TEMP, f"assembled_{contact_id}.json")
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(assembled, f, indent=2, default=str)
 
-            case_study = generated.get("case_study", "case study")
-            assembled["e2"]["body"] = _append_placeholder(
-                generated["e2"]["body"],
-                f"[Insert {case_study} case study link here]",
-            )
-            assembled["e5"]["body"] = _append_placeholder(
-                generated["e5"]["body"],
-                "[Insert rep booking link here]",
-            )
+        print(f"Assembled {contact_id}")
 
-            out_path = os.path.join(RUNNER_TEMP, f"assembled_{cid}.json")
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(assembled, f, indent=2, default=str)
-
-            assembled_count += 1
-
-        except Exception as exc:
-            write_dlq(cid, "", "assemble_bodies", str(exc), 0)
-            print(f"ERROR assemble {cid}: {exc}", file=sys.stderr)
-
-    print(f"Assembly complete: {assembled_count}/{total} contacts assembled.")
+    except Exception as exc:
+        write_dlq(contact_id, "", "assemble_bodies", str(exc), 0)
+        print(f"ERROR assemble {contact_id}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

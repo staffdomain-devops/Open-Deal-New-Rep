@@ -1,9 +1,16 @@
-"""fetch_record.py — Per-contact record assembly for the Lane A re-engagement pipeline.
+"""fetch_context.py — Per-contact raw HubSpot context assembly.
 
 Usage:
-    python scripts/fetch_record.py <contact_id>
+    python scripts/fetch_context.py <contact_id>
+    (or set INPUT_CONTACT_ID in the environment)
 
-Writes $RUNNER_TEMP/contact_{id}.json with all 11 D-13 fields assembled from HubSpot.
+Writes $RUNNER_TEMP/context_{id}.json with everything Agent 1 needs to reason
+about the record: contact/company properties, all company contacts, all
+company deals, story notes + live hiring signals, resolved handover, geo,
+only-contact flag, departure flag, and duplicate-name signals. This script
+makes no judgment calls — it fetches and does only mechanical filtering
+(junk deal names, bot-noise note prefixes). Everything else (sensitivity
+detection, exclusion verdicts, colleague selection) is Agent 1's job.
 """
 
 import json
@@ -81,17 +88,13 @@ RUNNER_TEMP = os.environ.get("RUNNER_TEMP", ".")
 client = hubspot.Client.create(access_token=HUBSPOT_API_KEY)
 
 # ---------------------------------------------------------------------------
-# Fetch functions (added in Task 2)
+# Fetch functions
 # ---------------------------------------------------------------------------
 
 
 @retry(**HS_RETRY_KWARGS)
 def fetch_contact(contact_id: str) -> dict:
-    """Fetch contact properties for the given contact ID.
-
-    Returns a dict of {prop_name: value} for each name in CONTACT_PROPS.
-    Missing properties default to None.
-    """
+    """Fetch contact properties for the given contact ID."""
     result = client.crm.contacts.basic_api.get_by_id(
         contact_id, properties=CONTACT_PROPS
     )
@@ -103,8 +106,7 @@ def fetch_contact(contact_id: str) -> dict:
 def fetch_company(contact_id: str) -> tuple:
     """Fetch the company associated with a contact and its properties.
 
-    Returns (company_id: str, company_props: dict).
-    Returns ("", {}) if no company association exists.
+    Returns (company_id: str, company_props: dict). ("", {}) if no association.
     """
     assoc = client.crm.associations.v4.basic_api.get_page("contacts", contact_id, "companies")
     results = assoc.results or []
@@ -120,12 +122,7 @@ def fetch_company(contact_id: str) -> tuple:
 
 @retry(**HS_RETRY_KWARGS)
 def fetch_all_company_contacts(company_id: str) -> list:
-    """Fetch all contacts associated with the given company.
-
-    Returns a list of dicts with keys: firstname, lastname, jobtitle,
-    num_contacted_notes (int, default 0), notes_last_contacted.
-    Returns [] if company_id is empty.
-    """
+    """Fetch all contacts associated with the given company."""
     if not company_id:
         return []
 
@@ -162,11 +159,7 @@ def fetch_all_company_contacts(company_id: str) -> list:
 
 @retry(**HS_RETRY_KWARGS)
 def fetch_deals(company_id: str) -> list:
-    """Fetch all junk-filtered deals associated with the given company.
-
-    Returns a list of dicts with keys: dealname, dealstage, createdate, closedate.
-    Returns [] if company_id is empty.
-    """
+    """Fetch all junk-filtered deals associated with the given company."""
     if not company_id:
         return []
 
@@ -186,7 +179,6 @@ def fetch_deals(company_id: str) -> list:
         props = item.properties or {}
         dealname = props.get("dealname") or ""
         name_lower = dealname.lower()
-        # Junk filter: (Test), (delete), standalone 'test' token
         if name_lower.startswith("(test)") or name_lower.startswith("(delete)"):
             continue
         if re.search(r"\btest\b", dealname, re.IGNORECASE):
@@ -203,11 +195,7 @@ def fetch_deals(company_id: str) -> list:
 
 
 def _fetch_engagements_paged(person_id: str) -> list:
-    """Fetch all engagements for a contact via the v1 legacy endpoint.
-
-    Uses REQ_RETRY_KWARGS-decorated inner function for retry logic.
-    Returns a flat list of raw engagement dicts.
-    """
+    """Fetch all engagements for a contact via the v1 legacy endpoint."""
 
     @retry(**REQ_RETRY_KWARGS)
     def _get_page(offset: int) -> dict:
@@ -231,18 +219,13 @@ def _fetch_engagements_paged(person_id: str) -> list:
 
 
 def _parse_hiring_signal(body: str) -> dict:
-    """Best-effort extraction of role + month from a job-ad note body.
-
-    Returns {"role": str, "month": str} — falls back to the raw first line
-    if specific patterns are not found.
-    """
+    """Best-effort extraction of role + month from a job-ad note body."""
     month_names = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December",
         "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ]
 
-    # Try to extract role after "for" or "opportunity:"
     role = None
     role_match = re.search(
         r"(?:for|opportunity:)\s+([A-Z][^(\n]{2,60}?)(?:\s*[\(\n]|$)", body
@@ -250,7 +233,6 @@ def _parse_hiring_signal(body: str) -> dict:
     if role_match:
         role = role_match.group(1).strip().rstrip(".,")
 
-    # Try to find nearest month name
     month = None
     for m in month_names:
         if m in body:
@@ -258,7 +240,6 @@ def _parse_hiring_signal(body: str) -> dict:
             break
 
     if not role:
-        # Fall back to first non-empty line
         for line in body.splitlines():
             line = line.strip()
             if line:
@@ -268,49 +249,16 @@ def _parse_hiring_signal(body: str) -> dict:
     return {"role": role or "", "month": month or ""}
 
 
-def _is_sensitive(body: str) -> bool:
-    """Return True if any of the three sensitive-content patterns match the note body."""
-    # a. Negative language near title/name
-    if re.search(
-        r"(?:mad|annoyed|frustrated|angry|furious|repeating|same errors|"
-        r"complained|blames|blamed).{0,80}"
-        r"(?:CEO|MD|CFO|director|manager|[A-Z][a-z]+)",
-        body,
-        re.IGNORECASE,
-    ):
-        return True
-
-    # b. Competitor mention (not preceded by "Staff Domain" / "StaffDomain" within 60 chars)
-    comp_match = re.search(
-        r"(?:using|switched to|went with|chose|preferred|contract with|working with)"
-        r"\s+([A-Z][A-Za-z\s]{2,30})",
-        body,
-        re.IGNORECASE,
-    )
-    if comp_match:
-        start = comp_match.start()
-        preceding = body[max(0, start - 60):start]
-        if "Staff Domain" not in preceding and "StaffDomain" not in preceding:
-            return True
-
-    # c. Explicit sensitivity marker
-    if re.search(r"\b(?:INTERNAL|confidential)\b", body, re.IGNORECASE):
-        return True
-
-    return False
-
-
 def fetch_notes(
     contact_id: str, contact_props: dict, all_company_contacts: list
 ) -> tuple:
     """Fetch notes for the contact and up to 2 top colleagues.
 
-    Bot-noise filter, live hiring signal parsing, and sensitive items detection
-    are all applied here.
+    Only mechanical bot-noise filtering and live-hiring-signal parsing happen
+    here. Sensitive/INTERNAL-content detection is Agent 1's job, not regex's.
 
-    Returns (story_notes: list[str], live_hiring_signals: list[dict], sensitive_items: list[str]).
+    Returns (story_notes: list[str], live_hiring_signals: list[dict]).
     """
-    # Determine colleague IDs to fetch (D-11)
     contact_first = (contact_props.get("firstname") or "").strip().lower()
     contact_last = (contact_props.get("lastname") or "").strip().lower()
 
@@ -322,13 +270,11 @@ def fetch_notes(
         )
         and c.get("num_contacted_notes", 0) >= 1
     ]
-    # Sort by num_contacted_notes descending, take top 2
     colleagues.sort(key=lambda c: c.get("num_contacted_notes", 0), reverse=True)
     top_colleagues = colleagues[:2]
 
     person_ids = [contact_id] + [c["_id"] for c in top_colleagues]
 
-    # Collect all NOTE engagement bodies
     raw_bodies = []
     for pid in person_ids:
         engagements = _fetch_engagements_paged(pid)
@@ -340,12 +286,10 @@ def fetch_notes(
 
     story_notes = []
     live_hiring_signals = []
-    sensitive_items = []
 
     for body in raw_bodies:
         first_80 = body[:80]
 
-        # Check if it is bot noise
         is_bot_noise = any(prefix in first_80 for prefix in BOT_NOISE_PREFIXES)
         is_job_ad = any(prefix in first_80 for prefix in JOB_AD_PREFIXES)
 
@@ -353,31 +297,24 @@ def fetch_notes(
             if is_job_ad:
                 signal = _parse_hiring_signal(body)
                 live_hiring_signals.append(signal)
-            # All bot-noise notes are discarded from story_notes
             continue
 
-        # Non-bot-noise: store as story note (capped at 5000 chars)
-        truncated = safe_truncate(body, 5000)
-        story_notes.append(truncated)
+        story_notes.append(safe_truncate(body, 5000))
 
-        # Sensitive items detection (D-08)
-        if _is_sensitive(body):
-            sensitive_items.append(safe_truncate(body, 300))
-
-    return (story_notes, live_hiring_signals, sensitive_items)
+    return (story_notes, live_hiring_signals)
 
 
 def fetch_handover(contact_id: str) -> dict:
     """Resolve the handover owner — the person who last contacted this contact
     by CALL or outbound EMAIL (whichever is more recent).
 
-    Returns a dict with keys: first_name, last_contact_date, method, is_active.
-    Returns None if zero CALL and zero outbound EMAIL engagements exist.
+    Returns a dict with keys: first_name, last_contact_date, method, is_active,
+    owner_id. Returns None if zero CALL and zero outbound EMAIL engagements exist.
     """
     engagements = _fetch_engagements_paged(contact_id)
 
-    best_call = None       # (timestamp, owner_id)
-    best_email = None      # (timestamp, owner_id)
+    best_call = None
+    best_email = None
 
     for eng in engagements:
         engagement = eng.get("engagement", {})
@@ -392,14 +329,13 @@ def fetch_handover(contact_id: str) -> dict:
 
         elif eng_type == "EMAIL":
             direction = metadata.get("direction")
-            if direction == "EMAIL":  # outbound only
+            if direction == "EMAIL":
                 if best_email is None or timestamp > best_email[0]:
                     best_email = (timestamp, owner_id)
 
     if best_call is None and best_email is None:
         return None
 
-    # Pick the later of the two
     if best_call is None:
         winning_ts, winning_owner_id, method = best_email[0], best_email[1], "email"
     elif best_email is None:
@@ -426,20 +362,12 @@ def fetch_handover(contact_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Resolution functions (added in Plan 02-03)
+# Resolution / signal functions
 # ---------------------------------------------------------------------------
 
 
 def resolve_geo(company_props: dict, contact_props: dict) -> str:
-    """Resolve the geographic market for this contact using a 3-step ladder (D-06).
-
-    Step 1: Match company.country string (case-insensitive).
-    Step 2: Match contact.phone prefix (after stripping spaces and dashes).
-    Step 3: Return "UNRESOLVED" and log a warning to stderr.
-
-    Always returns a non-empty string — never raises.
-    """
-    # Step 1 — company country string match
+    """Resolve the geographic market for this contact using a 3-step ladder."""
     country = (company_props.get("country") or "").strip().lower()
     AU_COUNTRIES = {"australia", "au"}
     NZ_COUNTRIES = {"new zealand", "nz"}
@@ -455,7 +383,6 @@ def resolve_geo(company_props: dict, contact_props: dict) -> str:
     if country in UK_COUNTRIES:
         return "UK"
 
-    # Step 2 — phone prefix (strip spaces and dashes first)
     phone = (contact_props.get("phone") or "").replace(" ", "").replace("-", "")
     if phone.startswith("+61"):
         return "AU"
@@ -466,7 +393,6 @@ def resolve_geo(company_props: dict, contact_props: dict) -> str:
     if phone.startswith("+44"):
         return "UK"
 
-    # Step 3 — unresolved; Phase 3 holds these records
     print(
         f"GEO UNRESOLVED for contact {contact_props.get('email', '?')}",
         file=sys.stderr,
@@ -475,12 +401,7 @@ def resolve_geo(company_props: dict, contact_props: dict) -> str:
 
 
 def check_departure(story_notes: list, contact_props: dict) -> bool:
-    """Return True if any story note suggests the contact has left their company (D-14).
-
-    Searches for "has left", "no longer with", "moved on from" within 30 chars of the
-    contact's first or last name (case-insensitive). Returns False if both names are
-    empty (cannot perform meaningful check).
-    """
+    """Return True if any story note suggests the contact has left their company."""
     firstname = (contact_props.get("firstname") or "").strip()
     lastname = (contact_props.get("lastname") or "").strip()
 
@@ -508,18 +429,14 @@ def check_departure(story_notes: list, contact_props: dict) -> bool:
 
 
 def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bool:
-    """Return True if the contact is the sole person with num_contacted_notes >= 1 (FETCH-10).
-
-    Fallback: if all_company_contacts is empty, return True (conservative — Phase 3
-    brief will say "only contact", which is a safe overstatement per D-14).
-    """
+    """Return True if the contact is the sole person with num_contacted_notes >= 1."""
     contacted = [
         c for c in all_company_contacts
         if int(c.get("num_contacted_notes") or 0) >= 1
     ]
 
     if len(contacted) == 0:
-        return True  # fallback: no association data returned
+        return True
 
     if len(contacted) == 1:
         c = contacted[0]
@@ -527,7 +444,34 @@ def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bo
         same_last = (c.get("lastname") or "").lower() == (contact_props.get("lastname") or "").lower()
         return same_first and same_last
 
-    return False  # multiple contacted people → not the only contact
+    return False
+
+
+def find_possible_duplicates(
+    contact_id: str, contact_props: dict, all_company_contacts: list
+) -> list:
+    """Return sibling contact IDs at the same company sharing this contact's
+    normalised first+last name (E4 duplicate-record signal).
+
+    This replaces the old batch-wide "seen" dict — since all company contacts
+    are already fetched per record, an exact-name collision at the same
+    company is detectable without any cross-run state.
+    """
+    firstname = (contact_props.get("firstname") or "").strip().lower()
+    lastname = (contact_props.get("lastname") or "").strip().lower()
+    if not firstname and not lastname:
+        return []
+
+    duplicates = []
+    for c in all_company_contacts:
+        if c.get("_id") == str(contact_id):
+            continue
+        if (
+            (c.get("firstname") or "").strip().lower() == firstname
+            and (c.get("lastname") or "").strip().lower() == lastname
+        ):
+            duplicates.append(c["_id"])
+    return duplicates
 
 
 # ---------------------------------------------------------------------------
@@ -536,39 +480,48 @@ def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bo
 
 
 def _fetch_one(contact_id: str) -> None:
-    """Fetch and write all data for a single contact. Raises on any failure."""
-    failed_step = "unknown"
+    """Fetch and write all context data for a single contact.
 
-    failed_step = "fetch_contact"
-    contact_props = fetch_contact(contact_id)
+    Raises RuntimeError("<step>: <original error>") on any failure, so callers
+    can report which step failed without needing a full traceback.
+    """
+    step = "fetch_contact"
+    try:
+        contact_props = fetch_contact(contact_id)
 
-    failed_step = "fetch_company"
-    company_id, company_props = fetch_company(contact_id)
+        step = "fetch_company"
+        company_id, company_props = fetch_company(contact_id)
 
-    failed_step = "fetch_all_company_contacts"
-    all_company_contacts = fetch_all_company_contacts(company_id)
+        step = "fetch_all_company_contacts"
+        all_company_contacts = fetch_all_company_contacts(company_id)
 
-    failed_step = "fetch_deals"
-    deals = fetch_deals(company_id)
+        step = "fetch_deals"
+        deals = fetch_deals(company_id)
 
-    failed_step = "fetch_notes"
-    story_notes, live_hiring_signals, sensitive_items = fetch_notes(
-        contact_id, contact_props, all_company_contacts
-    )
+        step = "fetch_notes"
+        story_notes, live_hiring_signals = fetch_notes(
+            contact_id, contact_props, all_company_contacts
+        )
 
-    failed_step = "fetch_handover"
-    handover = fetch_handover(contact_id)
+        step = "fetch_handover"
+        handover = fetch_handover(contact_id)
 
-    failed_step = "resolve_geo"
-    geo = resolve_geo(company_props, contact_props)
+        step = "resolve_geo"
+        geo = resolve_geo(company_props, contact_props)
 
-    failed_step = "check_departure"
-    departure_flagged = check_departure(story_notes, contact_props)
+        step = "check_departure"
+        departure_flagged = check_departure(story_notes, contact_props)
 
-    failed_step = "is_only_contact"
-    is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
+        step = "is_only_contact"
+        is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
+
+        step = "find_possible_duplicates"
+        possible_duplicates = find_possible_duplicates(contact_id, contact_props, all_company_contacts)
+    except Exception as exc:
+        raise RuntimeError(f"{step}: {exc}") from exc
 
     record = {
+        "contact_id": str(contact_id),
         "contact_props": contact_props,
         "company_id": company_id,
         "company_props": company_props,
@@ -579,46 +532,29 @@ def _fetch_one(contact_id: str) -> None:
         "handover": handover,
         "geo": geo,
         "is_only_contact": is_only_contact,
-        "sensitive_items": sensitive_items,
         "departure_flagged": departure_flagged,
+        "possible_duplicates": possible_duplicates,
     }
 
-    out_path = os.path.join(RUNNER_TEMP, f"contact_{contact_id}.json")
+    out_path = os.path.join(RUNNER_TEMP, f"context_{contact_id}.json")
     with open(out_path, "w") as f:
         json.dump(record, f, indent=2, default=str)
     print(f"Written {out_path}")
 
 
 def main():
-    # Batch mode: read contact_ids.json and process all contacts.
-    # Single-contact mode: python fetch_record.py <contact_id> (for debugging).
-    if len(sys.argv) >= 2:
-        contact_id = sys.argv[1]
-        write_dlq(contact_id, "", "startup", "sentinel", 0)
-        try:
-            _fetch_one(contact_id)
-        except Exception as e:
-            write_dlq(contact_id, "", "fetch_record", str(e), 0)
-            sys.exit(1)
-        return
+    contact_id = sys.argv[1] if len(sys.argv) >= 2 else os.environ.get("INPUT_CONTACT_ID")
+    if not contact_id:
+        print("ERROR: contact_id not provided (argv[1] or INPUT_CONTACT_ID).", file=sys.stderr)
+        sys.exit(1)
 
-    ids_path = os.path.join(RUNNER_TEMP, "contact_ids.json")
-    with open(ids_path) as f:
-        contact_ids = json.load(f)
-
-    total = len(contact_ids)
-    write_dlq("batch", "", "startup", "sentinel", 0)
-
-    fetched_count = 0
-    for cid in contact_ids:
-        try:
-            _fetch_one(cid)
-            fetched_count += 1
-        except Exception as e:
-            write_dlq(cid, "", "fetch_record", str(e), 0)
-            print(f"ERROR {cid}: {e}", file=sys.stderr)
-
-    print(f"Fetch complete: {fetched_count}/{total} contacts fetched.")
+    write_dlq(contact_id, "", "startup", "sentinel", 0)
+    try:
+        _fetch_one(contact_id)
+    except Exception as e:
+        write_dlq(contact_id, "", "fetch_context", str(e), 0)
+        print(f"ERROR {contact_id}: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

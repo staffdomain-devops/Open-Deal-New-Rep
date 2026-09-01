@@ -126,11 +126,21 @@ def _call_research(user_message: str) -> anthropic.types.Message:
     )
 
 
+def _extract_text(response: anthropic.types.Message, contact_id: str) -> str:
+    """Return the first text block's content, skipping ThinkingBlocks and any
+    other non-text content blocks (extended thinking prepends a ThinkingBlock
+    when enabled, so content[0] is not reliably the text block)."""
+    for block in response.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise OutputParseError(f"No text block found in response content for {contact_id}")
+
+
 def _parse_output(response: anthropic.types.Message, contact_id: str) -> dict:
     if response.stop_reason == "max_tokens":
         raise OutputParseError(f"max_tokens reached for contact {contact_id}")
 
-    raw_text = response.content[0].text.strip()
+    raw_text = _extract_text(response, contact_id).strip()
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 

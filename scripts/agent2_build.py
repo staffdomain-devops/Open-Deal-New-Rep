@@ -42,11 +42,21 @@ class OutputParseError(Exception):
     """Raised when 8-key JSON cannot be parsed from model response."""
 
 
+def _extract_text(response: anthropic.types.Message, contact_id: str) -> str:
+    """Return the first text block's content, skipping ThinkingBlocks and any
+    other non-text content blocks (extended thinking prepends a ThinkingBlock
+    when enabled, so content[0] is not reliably the text block)."""
+    for block in response.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise OutputParseError(f"No text block found in response content for {contact_id}")
+
+
 def parse_output(response: anthropic.types.Message, contact_id: str) -> dict:
     if response.stop_reason == "max_tokens":
         raise MaxTokensError(f"max_tokens reached for contact {contact_id}")
 
-    raw_text = response.content[0].text
+    raw_text = _extract_text(response, contact_id)
 
     text = raw_text.strip()
     if text.startswith("```"):

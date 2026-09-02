@@ -120,7 +120,7 @@ def _build_user_message(context: dict, vr, close_option: int, close_text: str) -
 def _call_research(user_message: str) -> anthropic.types.Message:
     return client.messages.create(
         model="claude-sonnet-5",
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_MESSAGE,
         messages=[{"role": "user", "content": user_message}],
     )
@@ -137,12 +137,17 @@ def _extract_text(response: anthropic.types.Message, contact_id: str) -> str:
 
 
 def _parse_output(response: anthropic.types.Message, contact_id: str) -> dict:
-    if response.stop_reason == "max_tokens":
-        raise OutputParseError(f"max_tokens reached for contact {contact_id}")
-
     raw_text = _extract_text(response, contact_id).strip()
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+    if response.stop_reason == "max_tokens":
+        raw_path = os.path.join(RUNNER_TEMP, f"raw_research_{contact_id}.txt")
+        with open(raw_path, "w", encoding="utf-8") as f:
+            f.write(raw_text)
+        raise OutputParseError(
+            f"max_tokens reached for contact {contact_id}; truncated output saved to {raw_path}"
+        )
 
     try:
         parsed = json.loads(raw_text)

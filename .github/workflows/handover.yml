@@ -76,12 +76,22 @@ jobs:
         working-directory: scripts
         run: python write_hubspot.py "$INPUT_CONTACT_ID"
 
+      - name: upload-context-output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: context-output-${{ env.INPUT_CONTACT_ID }}
+          path: "${{ runner.temp }}/context_*.json"
+          if-no-files-found: warn
+
       - name: upload-research-output
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: research-output-${{ env.INPUT_CONTACT_ID }}
-          path: "${{ runner.temp }}/research_*.json"
+          path: |
+            ${{ runner.temp }}/research_*.json
+            ${{ runner.temp }}/raw_research_*.txt
           if-no-files-found: warn
 
       - name: upload-generated-output

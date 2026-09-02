@@ -120,7 +120,7 @@ def _build_user_message(context: dict, vr, close_option: int, close_text: str) -
 def _call_research(user_message: str) -> anthropic.types.Message:
     return client.messages.create(
         model="claude-sonnet-5",
-        max_tokens=2000,
+        max_tokens=4096,
         system=SYSTEM_MESSAGE,
         messages=[{"role": "user", "content": user_message}],
     )

@@ -23,6 +23,7 @@ import hubspot
 import requests
 from hubspot.crm.contacts import BatchReadInputSimplePublicObjectId
 from hubspot.crm.deals import BatchReadInputSimplePublicObjectId as DealBatchReadInput
+from hubspot.crm.owners import ApiException as OwnerApiException
 from tenacity import retry
 
 from utils import write_dlq, HS_RETRY_KWARGS, REQ_RETRY_KWARGS, safe_truncate
@@ -347,7 +348,16 @@ def fetch_handover(contact_id: str) -> dict:
 
     @retry(**HS_RETRY_KWARGS)
     def _get_owner(owner_id):
-        return client.crm.owners.owners_api.get_by_id(owner_id)
+        # A deactivated (archived) owner 404s unless archived=True is passed
+        # explicitly — HubSpot's active-owner lookup and archived-owner
+        # lookup are different query paths. This pipeline targets old deals
+        # whose original rep has often since left, so the fallback matters.
+        try:
+            return client.crm.owners.owners_api.get_by_id(owner_id)
+        except OwnerApiException as exc:
+            if exc.status == 404:
+                return client.crm.owners.owners_api.get_by_id(owner_id, archived=True)
+            raise
 
     owner = _get_owner(winning_owner_id)
     last_contact_date = datetime.utcfromtimestamp(winning_ts / 1000).strftime("%Y-%m-%d")

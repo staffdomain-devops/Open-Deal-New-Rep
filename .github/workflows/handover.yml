@@ -51,6 +51,11 @@ jobs:
         working-directory: scripts
         run: python agent1_research.py "$INPUT_CONTACT_ID"
 
+      - name: notify-verdict-note
+        if: steps.research.outputs.verdict != 'PROCEED'
+        working-directory: scripts
+        run: python notify_verdict.py "$INPUT_CONTACT_ID"
+
       - name: agent2-build
         if: steps.research.outputs.verdict == 'PROCEED'
         working-directory: scripts

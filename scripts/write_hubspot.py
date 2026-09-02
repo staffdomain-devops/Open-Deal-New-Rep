@@ -16,7 +16,12 @@ from datetime import datetime, timezone
 
 import hubspot
 from hubspot.crm.contacts import SimplePublicObjectInput
-from hubspot.crm.objects.notes import SimplePublicObjectInputForCreate
+from hubspot.crm.objects.notes import (
+    AssociationSpec,
+    PublicAssociationsForObject,
+    PublicObjectId,
+    SimplePublicObjectInputForCreate,
+)
 from tenacity import retry
 
 from utils import write_dlq, HS_RETRY_KWARGS
@@ -102,27 +107,30 @@ def _write_properties(client, contact_id: str, properties: dict) -> None:
 
 
 @retry(**HS_RETRY_KWARGS)
-def _create_note_object(client, body: str) -> str:
+def _create_note_object(client, body: str, contact_id: str) -> str:
+    """Create the note and associate it to the contact in one atomic call —
+    avoids a second API round-trip that could leave an orphaned, unassociated
+    note if it failed independently."""
     note_input = SimplePublicObjectInputForCreate(
         properties={
             "hs_note_body": body,
             "hs_timestamp": datetime.now(timezone.utc).isoformat(),
-        }
+        },
+        associations=[
+            PublicAssociationsForObject(
+                to=PublicObjectId(id=str(contact_id)),
+                types=[
+                    AssociationSpec(
+                        association_category="HUBSPOT_DEFINED", association_type_id=202
+                    )
+                ],
+            )
+        ],
     )
     response = client.crm.objects.notes.basic_api.create(
         simple_public_object_input_for_create=note_input
     )
     return str(response.id)
-
-
-@retry(**HS_RETRY_KWARGS)
-def _associate_note(client, note_id: str, contact_id: str) -> None:
-    client.crm.objects.notes.associations_api.create(
-        note_id=note_id,
-        to_object_type="contacts",
-        to_object_id=contact_id,
-        association_type="202",
-    )
 
 
 def _pin_note(contact_id: str, note_id: str, client) -> bool:
@@ -191,8 +199,7 @@ def main() -> None:
 
     try:
         pin_body = assembled["pin"]["body"]
-        note_id = _create_note_object(client, pin_body)
-        _associate_note(client, note_id, str(contact_id))
+        note_id = _create_note_object(client, pin_body, str(contact_id))
         _pin_note(str(contact_id), note_id, client)
         print(f"Note created and pin attempted for contact {contact_id}")
     except Exception as exc:

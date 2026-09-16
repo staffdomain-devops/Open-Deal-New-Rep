@@ -110,7 +110,12 @@ EMAIL 1, Day 1. The handover introduction. Exactly four content parts:
  (a) Greeting: "Hi {first name},"
  (b) The handover, one short line naming the previous rep from the brief:
      "I've recently taken over your account from {name}." Vary the verb
-     (taken over / picked up) but keep it one line.
+     (taken over / picked up) but keep it one line. If the brief's HANDOVER
+     line says there is no previous handover contact on record, drop this
+     part entirely and write a fresh, first-time self-introduction instead
+     ("I'm the account manager looking after things at Staff Domain now" or
+     similar) — never invent a predecessor, never say "taken over" or
+     "picked up" when there is no one to have taken over from.
  (c) The proof-of-homework line: one sentence showing you have read the file.
      Reference what the brief supports: colleagues by first name, the old role,
      the rough timing. If the brief says no deal, reference the relationship

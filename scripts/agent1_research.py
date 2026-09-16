@@ -95,8 +95,6 @@ def _build_user_message(context: dict, vr, close_option: int, close_text: str) -
         "handover": context["handover"],
         "geo": context["geo"],
         "is_only_contact": context["is_only_contact"],
-        "departure_flagged": context["departure_flagged"],
-        "possible_duplicates": context["possible_duplicates"],
         "routing": {
             "case_study": vr.case_study,
             "email3_url": vr.email3_url,

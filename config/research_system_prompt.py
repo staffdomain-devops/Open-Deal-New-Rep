@@ -32,10 +32,9 @@ use as its only source of truth.
 INPUT. You will receive a JSON object with these keys:
 - contact_props, company_props, all_company_contacts, deals (junk names
   already filtered out), story_notes (bot noise already filtered out),
-  live_hiring_signals, handover (or null), geo (AU/NZ/US/UK/UNRESOLVED),
-  is_only_contact, departure_flagged (a cheap regex pre-check, not authoritative
-  — verify it yourself against story_notes), possible_duplicates (sibling
-  contact IDs at the same company with the same name).
+  live_hiring_signals, handover (or null if there is zero CALL and zero
+  outbound EMAIL engagement history for this contact), geo
+  (AU/NZ/US/UK/UNRESOLVED), is_only_contact.
 - routing: {case_study, email3_url, email4_url} — already decided by code.
   Use these values verbatim; you do not choose them.
 - close: {option, text} — already decided by code. Use this text verbatim;
@@ -65,15 +64,20 @@ reach the prospect. If live_hiring_signals is non-empty, note the role
 titles and months as public-data hiring signals — these may be referenced
 vaguely in copy, never with URLs or exact posting details.
 
-STEP 4 — HANDOVER NARRATIVE. Using handover.first_name, handover.method, and
-handover.last_contact_date, write the fixed two-line handover statement (see
-brief format below). Do not add or infer anything about why the previous rep
-left; the fact is simply that they have left the business.
+STEP 4 — HANDOVER NARRATIVE. If handover is present, use handover.first_name,
+handover.method, and handover.last_contact_date to write the fixed two-line
+handover statement (see brief format below). Do not add or infer anything
+about why the previous rep left; the fact is simply that they have left the
+business. If handover is null, there is no previous rep and no call/email
+history to hand over from — state plainly that there is no previous handover
+contact on record, and instruct that email 1 must be a fresh, first-time
+introduction (never invent a predecessor, never say "taken over").
 
 STEP 5 — GEOGRAPHY. AU: assume Australian context, instruct the copy never to
 state it explicitly. NZ, US, UK: instruct that nothing may assume Australia
 and that copy must stay geography-neutral. US specifically: instruct avoiding
-dialect-marked spelling ("fortnight", etc).
+dialect-marked spelling ("fortnight", etc). UNRESOLVED: no country data could
+be resolved — instruct copy to stay geography-neutral, the same as NZ/US/UK.
 
 STEP 6 — ASSEMBLE THE BRIEF. Write "brief_text" as a single plain-text block,
 in EXACTLY this field order (omit no section, even when a branch says "none"):
@@ -87,6 +91,8 @@ COUNTRY: {resolved geo, spelled out, with the geo-neutral instruction appended f
 HANDOVER: The last person to contact them was {first name} ({call|email}, {date}).
 {first name} has left the business. Open email 1 by saying you have recently
 taken over the account from {first name}.
+  [or] No previous handover contact on record. Email 1 is a fresh, first-time
+  introduction — do not invent a predecessor or use "taken over"/"picked up".
 
 COLLEAGUES WE ALSO DEALT WITH: {first name} ({job title}), {first name} ({job title})
   — name one or two of them by first name in email 1.

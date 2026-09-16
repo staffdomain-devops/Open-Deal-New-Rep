@@ -7,10 +7,11 @@ Usage:
 Writes $RUNNER_TEMP/context_{id}.json with everything Agent 1 needs to reason
 about the record: contact/company properties, all company contacts, all
 company deals, story notes + live hiring signals, resolved handover, geo,
-only-contact flag, departure flag, and duplicate-name signals. This script
-makes no judgment calls — it fetches and does only mechanical filtering
-(junk deal names, bot-noise note prefixes). Everything else (sensitivity
-detection, colleague selection) is Agent 1's job.
+and an only-contact flag. This script makes no judgment calls — it fetches
+and does only mechanical filtering (junk deal names, bot-noise note
+prefixes). Everything else (sensitivity detection, colleague selection) is
+Agent 1's job. Every contact handed to this script is assumed eligible;
+there is no hold/exclude filtering anywhere in this pipeline.
 """
 
 import json
@@ -410,34 +411,6 @@ def resolve_geo(company_props: dict, contact_props: dict) -> str:
     return "UNRESOLVED"
 
 
-def check_departure(story_notes: list, contact_props: dict) -> bool:
-    """Return True if any story note suggests the contact has left their company."""
-    firstname = (contact_props.get("firstname") or "").strip()
-    lastname = (contact_props.get("lastname") or "").strip()
-
-    if not firstname and not lastname:
-        return False
-
-    name_pattern = "|".join(
-        filter(None, [re.escape(firstname), re.escape(lastname)])
-    )
-
-    departure_phrases = ["has left", "no longer with", "moved on from"]
-
-    for body in story_notes:
-        if not body:
-            continue
-        for phrase in departure_phrases:
-            pattern = (
-                rf"(?i)(?:{name_pattern}).{{0,30}}(?:{re.escape(phrase)})"
-                rf"|(?:{re.escape(phrase)}).{{0,30}}(?:{name_pattern})"
-            )
-            if re.search(pattern, body):
-                return True
-
-    return False
-
-
 def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bool:
     """Return True if the contact is the sole person with num_contacted_notes >= 1."""
     contacted = [
@@ -455,33 +428,6 @@ def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bo
         return same_first and same_last
 
     return False
-
-
-def find_possible_duplicates(
-    contact_id: str, contact_props: dict, all_company_contacts: list
-) -> list:
-    """Return sibling contact IDs at the same company sharing this contact's
-    normalised first+last name (E4 duplicate-record signal).
-
-    This replaces the old batch-wide "seen" dict — since all company contacts
-    are already fetched per record, an exact-name collision at the same
-    company is detectable without any cross-run state.
-    """
-    firstname = (contact_props.get("firstname") or "").strip().lower()
-    lastname = (contact_props.get("lastname") or "").strip().lower()
-    if not firstname and not lastname:
-        return []
-
-    duplicates = []
-    for c in all_company_contacts:
-        if c.get("_id") == str(contact_id):
-            continue
-        if (
-            (c.get("firstname") or "").strip().lower() == firstname
-            and (c.get("lastname") or "").strip().lower() == lastname
-        ):
-            duplicates.append(c["_id"])
-    return duplicates
 
 
 # ---------------------------------------------------------------------------
@@ -519,14 +465,8 @@ def _fetch_one(contact_id: str) -> None:
         step = "resolve_geo"
         geo = resolve_geo(company_props, contact_props)
 
-        step = "check_departure"
-        departure_flagged = check_departure(story_notes, contact_props)
-
         step = "is_only_contact"
         is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
-
-        step = "find_possible_duplicates"
-        possible_duplicates = find_possible_duplicates(contact_id, contact_props, all_company_contacts)
     except Exception as exc:
         raise RuntimeError(f"{step}: {exc}") from exc
 
@@ -542,8 +482,6 @@ def _fetch_one(contact_id: str) -> None:
         "handover": handover,
         "geo": geo,
         "is_only_contact": is_only_contact,
-        "departure_flagged": departure_flagged,
-        "possible_duplicates": possible_duplicates,
     }
 
     out_path = os.path.join(RUNNER_TEMP, f"context_{contact_id}.json")

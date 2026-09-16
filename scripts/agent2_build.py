@@ -113,7 +113,7 @@ def write_generated(contact_id: str, parsed: dict, research: dict) -> None:
 def _call_realtime(brief_text: str) -> anthropic.types.Message:
     return client.messages.create(
         model="claude-sonnet-5",
-        max_tokens=3000,
+        max_tokens=4096,
         system=SYSTEM_MESSAGE,
         messages=[{"role": "user", "content": brief_text}],
     )

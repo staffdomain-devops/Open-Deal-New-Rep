@@ -5,12 +5,11 @@ Usage:
 
 Reads $RUNNER_TEMP/context_{id}.json (written by fetch_context.py), computes
 vertical routing and close-bank assignment deterministically, calls Claude to
-analyze the record and produce a verdict + research brief, and writes
+analyze the record and produce a research brief, and writes
 $RUNNER_TEMP/research_{id}.json.
 
-If the verdict is not PROCEED, the pipeline stops here: a Teams notification
-is sent (if configured) and the script exits 0 — a hold/exclude is an
-intentional outcome, not a failure.
+Eligibility is decided upstream by the HubSpot workflow that fires the
+webhook; every contact this script receives is expected to be eligible.
 """
 
 import json
@@ -18,7 +17,6 @@ import os
 import sys
 
 import anthropic
-import requests
 from tenacity import retry
 
 from config.close_bank import assign_close
@@ -28,7 +26,6 @@ from utils import ANTHROPIC_RETRY_KWARGS, write_dlq
 
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 RUNNER_TEMP = os.environ.get("RUNNER_TEMP", ".")
-TEAMS_WEBHOOK_URL = os.environ.get("TEAMS_WEBHOOK_URL", "")
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 SYSTEM_MESSAGE = [
@@ -40,8 +37,7 @@ SYSTEM_MESSAGE = [
 ]
 
 REQUIRED_KEYS = [
-    "verdict", "filter_code", "reasoning", "brief_text",
-    "sensitive_items", "handover_first_name", "colleague_first_names",
+    "brief_text", "sensitive_items", "handover_first_name", "colleague_first_names",
 ]
 
 
@@ -168,30 +164,6 @@ def _parse_output(response: anthropic.types.Message, contact_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Notification
-# ---------------------------------------------------------------------------
-
-
-def _notify_hold_exclude(contact_id: str, verdict: str, filter_code: str, reasoning: str) -> None:
-    if not TEAMS_WEBHOOK_URL:
-        print(f"{verdict} {contact_id} ({filter_code}): {reasoning}")
-        return
-    try:
-        requests.post(
-            TEAMS_WEBHOOK_URL,
-            json={
-                "text": f"Lane A {verdict}: contact {contact_id} ({filter_code}). {reasoning}",
-                "contact_id": contact_id,
-                "verdict": verdict,
-                "filter_code": filter_code,
-            },
-            timeout=15,
-        )
-    except Exception as exc:
-        print(f"WARNING: Teams notification failed for {contact_id}: {exc}", file=sys.stderr)
-
-
-# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -221,9 +193,6 @@ def main():
 
         research = {
             "contact_id": str(contact_id),
-            "verdict": parsed["verdict"],
-            "filter_code": parsed["filter_code"],
-            "reasoning": parsed["reasoning"],
             "brief_text": parsed["brief_text"],
             "sensitive_items": parsed["sensitive_items"],
             "handover_first_name": parsed["handover_first_name"],
@@ -240,17 +209,7 @@ def main():
         out_path = os.path.join(RUNNER_TEMP, f"research_{contact_id}.json")
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(research, f, indent=2)
-        print(f"Written {out_path} (verdict={research['verdict']})")
-
-        if research["verdict"] != "PROCEED":
-            _notify_hold_exclude(
-                contact_id, research["verdict"], research["filter_code"], research["reasoning"]
-            )
-
-        github_output = os.environ.get("GITHUB_OUTPUT")
-        if github_output:
-            with open(github_output, "a", encoding="utf-8") as f:
-                f.write(f"verdict={research['verdict']}\n")
+        print(f"Written {out_path}")
 
     except Exception as exc:
         write_dlq(contact_id, context["contact_props"].get("email", ""), "agent1_research", str(exc), 0)

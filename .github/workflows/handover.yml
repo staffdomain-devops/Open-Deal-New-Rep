@@ -47,32 +47,22 @@ jobs:
         run: python fetch_context.py "$INPUT_CONTACT_ID"
 
       - name: agent1-research
-        id: research
         working-directory: scripts
         run: python agent1_research.py "$INPUT_CONTACT_ID"
 
-      - name: notify-verdict-note
-        if: steps.research.outputs.verdict != 'PROCEED'
-        working-directory: scripts
-        run: python notify_verdict.py "$INPUT_CONTACT_ID"
-
       - name: agent2-build
-        if: steps.research.outputs.verdict == 'PROCEED'
         working-directory: scripts
         run: python agent2_build.py "$INPUT_CONTACT_ID"
 
       - name: lint
-        if: steps.research.outputs.verdict == 'PROCEED'
         working-directory: scripts
         run: python lint.py "$INPUT_CONTACT_ID"
 
       - name: assemble-bodies
-        if: steps.research.outputs.verdict == 'PROCEED'
         working-directory: scripts
         run: python assemble_bodies.py "$INPUT_CONTACT_ID"
 
       - name: write-hubspot
-        if: steps.research.outputs.verdict == 'PROCEED'
         working-directory: scripts
         run: python write_hubspot.py "$INPUT_CONTACT_ID"
 

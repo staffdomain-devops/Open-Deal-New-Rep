@@ -10,7 +10,7 @@ company deals, story notes + live hiring signals, resolved handover, geo,
 only-contact flag, departure flag, and duplicate-name signals. This script
 makes no judgment calls — it fetches and does only mechanical filtering
 (junk deal names, bot-noise note prefixes). Everything else (sensitivity
-detection, exclusion verdicts, colleague selection) is Agent 1's job.
+detection, colleague selection) is Agent 1's job.
 """
 
 import json

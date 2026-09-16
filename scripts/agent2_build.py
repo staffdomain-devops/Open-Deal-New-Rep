@@ -3,10 +3,10 @@
 Usage:
     python scripts/agent2_build.py <contact_id>
 
-Reads $RUNNER_TEMP/research_{id}.json (written by agent1_research.py, verdict
-must be PROCEED), calls Claude with the locked voice/mechanics system prompt
-to generate the 8 deliverables (5 emails + 2 call-task notes + 1 pin note),
-and writes $RUNNER_TEMP/generated_{id}.json.
+Reads $RUNNER_TEMP/research_{id}.json (written by agent1_research.py), calls
+Claude with the locked voice/mechanics system prompt to generate the 8
+deliverables (5 emails + 2 call-task notes + 1 pin note), and writes
+$RUNNER_TEMP/generated_{id}.json.
 """
 
 import json
@@ -130,10 +130,6 @@ def main():
         research = json.load(f)
 
     write_dlq(contact_id, "", "startup", "sentinel", 0)
-
-    if research.get("verdict") != "PROCEED":
-        print(f"SKIP {contact_id}: verdict={research.get('verdict')}, not PROCEED", file=sys.stderr)
-        sys.exit(1)
 
     try:
         response = _call_realtime(research["brief_text"])

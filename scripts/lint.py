@@ -28,6 +28,9 @@ EMAIL_KEYS = ["e1", "e2", "e3", "e4", "e5"]
 CALL_KEYS = ["call1", "call2", "pin"]
 EM_DASH = "—"
 URL_REGEX = re.compile(r"https?://\S+")
+# Trailing punctuation a URL picks up when woven into a sentence
+# ("...at {url}, have a look" / "...at {url}.") is not part of the URL.
+URL_TRAILING_PUNCT = ".,!?;:'\")]}"
 RUNNER_TEMP = os.environ.get("RUNNER_TEMP", ".")
 
 WORD_COUNT_MIN = 40
@@ -78,6 +81,10 @@ def _count_words(text: str) -> int:
 
 def _strip_punct(text: str) -> str:
     return re.sub(r"[^\w\s]", "", text).lower()
+
+
+def _clean_url(url: str) -> str:
+    return url.rstrip(URL_TRAILING_PUNCT)
 
 
 def _all_email_text(generated: dict) -> str:
@@ -158,8 +165,9 @@ def check_h06(generated: dict, research: dict) -> tuple:
         urls = URL_REGEX.findall(generated[key].get("body", ""))
         if len(urls) != 1:
             return (True, f"H06: {key} body must contain exactly one URL (found {len(urls)})")
-        if expected_url and urls[0] != expected_url:
-            return (True, f"H06: {key} URL '{urls[0]}' does not match brief URL '{expected_url}'")
+        found_url = _clean_url(urls[0])
+        if expected_url and found_url != expected_url:
+            return (True, f"H06: {key} URL '{found_url}' does not match brief URL '{expected_url}'")
     return (False, "")
 
 

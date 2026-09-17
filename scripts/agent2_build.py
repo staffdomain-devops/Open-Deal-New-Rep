@@ -109,11 +109,20 @@ def write_generated(contact_id: str, parsed: dict, research: dict) -> None:
         json.dump(payload, f, indent=2)
 
 
+# Sonnet 5 runs adaptive thinking by default even when `thinking` isn't set,
+# and thinking tokens share the same max_tokens budget as the visible JSON
+# output, so the ceiling needs headroom well beyond the ~550-word deliverable
+# text. Escalate on a max_tokens hit instead of failing outright: some briefs
+# push the model to reason more than others, and refusing to grow the budget
+# just moves the failure to the next contact that reasons a bit more.
+MAX_TOKENS_BUDGETS = [16000, 32000]
+
+
 @retry(**ANTHROPIC_RETRY_KWARGS)
-def _call_realtime(brief_text: str) -> anthropic.types.Message:
+def _call_realtime(brief_text: str, max_tokens: int) -> anthropic.types.Message:
     return client.messages.create(
         model="claude-sonnet-5",
-        max_tokens=4096,
+        max_tokens=max_tokens,
         system=SYSTEM_MESSAGE,
         messages=[{"role": "user", "content": brief_text}],
     )
@@ -132,8 +141,27 @@ def main():
     write_dlq(contact_id, "", "startup", "sentinel", 0)
 
     try:
-        response = _call_realtime(research["brief_text"])
-        parsed = parse_output(response, contact_id)
+        response = None
+        parsed = None
+        last_exc = None
+        for i, budget in enumerate(MAX_TOKENS_BUDGETS):
+            response = _call_realtime(research["brief_text"], budget)
+            try:
+                parsed = parse_output(response, contact_id)
+                last_exc = None
+                break
+            except MaxTokensError as exc:
+                last_exc = exc
+                remaining = len(MAX_TOKENS_BUDGETS) - i - 1
+                if remaining:
+                    print(
+                        f"WARNING {contact_id}: max_tokens={budget} reached, "
+                        f"retrying with a larger budget ({remaining} attempt(s) left)",
+                        file=sys.stderr,
+                    )
+        if last_exc is not None:
+            raise last_exc
+
         write_generated(contact_id, parsed, research)
         usage = response.usage
         print(

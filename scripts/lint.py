@@ -11,6 +11,7 @@ import sys
 from datetime import datetime, timezone
 
 from agent2_build import (
+    MAX_TOKENS_BUDGETS,
     MaxTokensError,
     OutputParseError,
     _call_realtime,
@@ -404,7 +405,7 @@ def run_lint(generated: dict, research: dict) -> tuple:
 
 
 def _regenerate_contact(contact_id: str, research: dict) -> dict:
-    response = _call_realtime(research["brief_text"])
+    response = _call_realtime(research["brief_text"], MAX_TOKENS_BUDGETS[0])
     parsed = parse_output(response, contact_id)
     write_generated(contact_id, parsed, research)
     return parsed

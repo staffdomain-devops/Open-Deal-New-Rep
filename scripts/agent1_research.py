@@ -14,6 +14,7 @@ webhook; every contact this script receives is expected to be eligible.
 
 import json
 import os
+import re
 import sys
 
 import anthropic
@@ -60,27 +61,49 @@ def _industry_match_strength(industry: str) -> str:
     return "partial"
 
 
-def _allowed_names(context: dict) -> list:
-    """Broad name allow-list for lint's name-invention check (H10)."""
+def _words(text: str) -> list:
+    """Lower-cased word tokens, punctuation dropped rather than glued together.
+
+    Splitting on whitespace alone would turn the routing table's
+    "Carrera by Design (construction/joinery)" into one token per bracketed
+    run; the values here are compared against whole words in lint, so they
+    have to be whole words too.
+    """
+    return [w.lower() for w in re.findall(r"[A-Za-z0-9']+", text or "")]
+
+
+def _company_name_words(context: dict) -> list:
+    """The company's own name, word by word.
+
+    Lint exempts these from the caricature list (H03) and the offshore
+    vocabulary list (H04): a prospect called "Australian Outsourcing Broker"
+    or "Sorted Digital Marketing" is entitled to be called that in the copy.
+    Those rules are about vocabulary we choose, not about their letterhead.
+    """
+    return sorted(set(_words(context["company_props"].get("name"))))
+
+
+def _allowed_names(context: dict, vr) -> list:
+    """Broad name allow-list for lint's name-invention check (H10).
+
+    Job titles and the case-study name are in here because the system prompt
+    tells the model to use both — colleagues are introduced by title, and
+    call1's EMAILS SO FAR names the case study. Without them H10 fires on
+    ordinary correct copy: "Director" alone sits in 267 job titles on the
+    current segment.
+    """
     props = context["contact_props"]
-    company_props = context["company_props"]
     handover = context.get("handover") or {}
     colleagues = context.get("all_company_contacts", [])
 
-    allowed = set()
-    for field in ("firstname", "lastname"):
-        v = props.get(field)
-        if v:
-            allowed.add(v.lower())
-    if handover.get("first_name"):
-        allowed.add(handover["first_name"].lower())
+    allowed = set(_company_name_words(context))
+    for field in ("firstname", "lastname", "jobtitle"):
+        allowed.update(_words(props.get(field)))
+    allowed.update(_words(handover.get("first_name")))
     for c in colleagues:
-        v = c.get("firstname")
-        if v:
-            allowed.add(v.lower())
-    company_name = company_props.get("name") or ""
-    for word in company_name.split():
-        allowed.add(word.lower())
+        for field in ("firstname", "jobtitle"):
+            allowed.update(_words(c.get(field)))
+    allowed.update(_words(vr.case_study))
     return sorted(allowed)
 
 
@@ -196,7 +219,11 @@ def main():
             "handover_first_name": parsed["handover_first_name"],
             "colleague_first_names": parsed["colleague_first_names"],
             "geo": context["geo"],
-            "allowed_names": _allowed_names(context),
+            # Carried through for assemble_bodies.py, which fills it into
+            # call1's code-supplied WHY THIS CALL line.
+            "contact_first_name": context["contact_props"].get("firstname") or "",
+            "allowed_names": _allowed_names(context, vr),
+            "company_name_words": _company_name_words(context),
             "case_study": vr.case_study,
             "email3_url": vr.email3_url,
             "email4_url": vr.email4_url,

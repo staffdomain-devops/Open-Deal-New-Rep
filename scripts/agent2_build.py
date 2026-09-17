@@ -109,6 +109,7 @@ def write_generated(contact_id: str, parsed: dict, research: dict) -> None:
         "case_study": research.get("case_study"),
         "close_option": research.get("close_option"),
         "close_text": research.get("close_text"),
+        "contact_first_name": research.get("contact_first_name", ""),
     }
     out_path = os.path.join(RUNNER_TEMP, f"generated_{contact_id}.json")
     with open(out_path, "w", encoding="utf-8") as f:

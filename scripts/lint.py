@@ -18,6 +18,7 @@ from agent2_build import (
     parse_output,
     write_generated,
 )
+from config.call_note_boilerplate import SEQUENCE_LINE
 from utils import write_dlq
 
 # ---------------------------------------------------------------------------
@@ -38,6 +39,19 @@ WORD_COUNT_MAX = 120
 CALL_WORD_MAX = 100
 PIN_WORD_MAX = 130
 
+# Required labelled sections (amendment check 14). Two kinds of label are
+# deliberately absent:
+#   - DO NOT SAY is conditional on the brief carrying sensitive material, and
+#     check 16 owns it.
+#   - WHY THIS CALL (call notes) and RULES (pin) are supplied by
+#     assemble_bodies.py, which runs after this lint, so they are guaranteed by
+#     construction rather than checked here. See config/call_note_boilerplate.py.
+CALL_LABELS = (
+    "WHO", "HISTORY", "HOW IT ENDED", "EMAILS SO FAR", "GOAL", "IF VOICEMAIL",
+)
+# The pin has its own skeleton (§6.3) and carries no HISTORY label.
+PIN_LABELS = ("WHY", "STORY", "HOW IT ENDED", "SEQUENCE")
+
 CARICATURE_WORDS = (
     "mob", "have a crack", "been burnt", "no dramas", "no worries", "all good",
     "reckon", "up your alley", "leave you be", "brutal", "silly money", "chew up",
@@ -53,8 +67,12 @@ BANNED_PHRASES = (
     "no sales pitch", "touching base",
 )
 
-OFFSHORE_WORDS = (
-    "offshore", "offshoring", "outsourc", "bpo", "onshore", "nearshore",
+# Matched on word boundaries, not as bare substrings: "bpo" is a substring of
+# the real segment company "GBPO Solutions", and stemming "offshor"/"outsourc"
+# without a leading boundary would do the same to any word that happens to
+# contain them.
+OFFSHORE_STEMS = (
+    r"offshor\w*", r"outsourc\w*", r"bpo", r"onshore", r"nearshore",
 )
 
 TIC_PHRASES = (
@@ -87,12 +105,93 @@ def _clean_url(url: str) -> str:
     return url.rstrip(URL_TRAILING_PUNCT)
 
 
+def _label_pattern(label: str) -> re.Pattern:
+    """Match a labelled section header at the start of a line.
+
+    Tolerates a parenthetical between the label and its colon, because the
+    pin's sequence header is `SEQUENCE (enrolled {date}):` when an enrolment
+    date is available and a bare `SEQUENCE:` when it is not.
+    """
+    return re.compile(
+        r"^[ \t]*" + re.escape(label) + r"\b[^\n:]*:",
+        re.IGNORECASE | re.MULTILINE,
+    )
+
+
+def _has_label(body: str, label: str) -> bool:
+    return bool(_label_pattern(label).search(body))
+
+
+def _label_section(body: str, label: str, all_labels) -> str:
+    """Return the text following `label`, up to whichever other label comes next."""
+    match = _label_pattern(label).search(body)
+    if not match:
+        return ""
+    start = match.end()
+    end = len(body)
+    for other in all_labels:
+        if other == label:
+            continue
+        nxt = _label_pattern(other).search(body, start)
+        if nxt and nxt.start() < end:
+            end = nxt.start()
+    return body[start:end]
+
+
 def _all_email_text(generated: dict) -> str:
     parts = []
     for k in EMAIL_KEYS:
         parts.append(generated[k].get("subject", ""))
         parts.append(generated[k].get("body", ""))
     return " ".join(parts)
+
+
+def _ngrams(text: str, n: int = 4) -> set:
+    words = text.split()
+    if len(words) < n:
+        return set()
+    return {" ".join(words[i:i + n]) for i in range(len(words) - n + 1)}
+
+
+def _proper_nouns(text: str) -> list:
+    """Capitalised words sitting inside a sentence, not opening one.
+
+    A sentence-initial capital is grammar, not a name. Everything else that is
+    capitalised mid-sentence is the kind of token check 12 actually cares
+    about: the competitor or provider name Agent 1 was told to quote.
+    """
+    nouns = []
+    sentence_start = True
+    for token in re.findall(r"[A-Za-z][A-Za-z'\-]*|[.!?]", text):
+        if token in (".", "!", "?"):
+            sentence_start = True
+            continue
+        if not sentence_start and token[:1].isupper() and len(token) >= 3:
+            nouns.append(token)
+        sentence_start = False
+    return nouns
+
+
+def _boundary_pattern(terms) -> re.Pattern:
+    """Compile `terms` into one alternation matched on word boundaries.
+
+    Bare substring matching is what makes a short banned word dangerous: on
+    the live segment "mate" hits inside "materials" and "estimate" (Building
+    Materials is one of the larger verticals on the list) and "sorted" hits
+    the real company name "Sorted Digital Marketing". Every one of those is a
+    valid candidate, and a hard failure here removes it from the campaign.
+    """
+    return re.compile(
+        r"\b(?:" + "|".join(re.escape(t) for t in terms) + r")\b",
+        re.IGNORECASE,
+    )
+
+
+BANNED_RE = _boundary_pattern(CARICATURE_WORDS + BANNED_PHRASES)
+# Already regex fragments, so they are alternated directly rather than escaped.
+OFFSHORE_RE = re.compile(
+    r"\b(?:" + "|".join(OFFSHORE_STEMS) + r")\b", re.IGNORECASE
+)
 
 
 # ---------------------------------------------------------------------------
@@ -123,19 +222,39 @@ def check_h02(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_h03(generated: dict) -> tuple:
-    combined = _all_email_text(generated).lower()
-    for phrase in CARICATURE_WORDS + BANNED_PHRASES:
-        if phrase in combined:
-            return (True, f"H03: banned phrase '{phrase}' found")
+def check_h03(generated: dict, research: dict) -> tuple:
+    """Caricature and banned phrases — but not the prospect's own name.
+
+    Word boundaries stop "mate" hitting inside "materials" and "estimate", but
+    they cannot help a company that IS one of these words: "Sorted Digital
+    Marketing" is on the live segment. Naming the account is correct copy, so
+    a hit that is part of that name is exempt, as in H04.
+    """
+    company_words = {w.lower() for w in research.get("company_name_words", [])}
+    for match in BANNED_RE.finditer(_all_email_text(generated)):
+        phrase = match.group(0).lower()
+        if phrase in company_words:
+            continue
+        return (True, f"H03: banned phrase '{phrase}' found")
     return (False, "")
 
 
-def check_h04(generated: dict) -> tuple:
-    combined = _all_email_text(generated).lower()
-    for word in OFFSHORE_WORDS:
-        if word in combined:
-            return (True, f"H04: offshore vocab '{word}' found")
+def check_h04(generated: dict, research: dict) -> tuple:
+    """Offshore vocabulary in the copy — but not the prospect's own name.
+
+    The rule exists to stop OUR copy leaking the word, not to ban naming the
+    account. Four contacts on the live segment are the vocabulary: "Australian
+    Outsourcing Broker", "Owen Warburton - Offshoring Management Agency",
+    "GBPO Solutions", and one whose industry is "Outsourcing Offshoring".
+    Writing their own company name back to them is correct, so a hit that is
+    part of that name is exempt.
+    """
+    company_words = {w.lower() for w in research.get("company_name_words", [])}
+    for match in OFFSHORE_RE.finditer(_all_email_text(generated)):
+        word = match.group(0)
+        if word.lower() in company_words:
+            continue
+        return (True, f"H04: offshore vocab '{word.lower()}' found")
     return (False, "")
 
 
@@ -202,6 +321,17 @@ def check_h09(generated: dict) -> tuple:
 
 
 def check_h10(generated: dict, research: dict) -> tuple:
+    """Name invention — ADVISORY, not a hard failure. See run_lint().
+
+    §7.1 #10 reads "check every capitalised first name". This checks every
+    capitalised word, which is a different and much wider net: across the live
+    segment, 172 distinct title-cased words appear in job titles alone
+    (Director on 267 contacts, Managing and Manager on 102 each). The system
+    prompt tells the model to reference the old role and name colleagues by
+    title, so "your Operations Manager" is ordinary correct copy that this
+    reads as an invented name. Until it matches on names rather than capitals,
+    a hard failure here drops valid candidates, so it warns instead.
+    """
     allowed = set(research.get("allowed_names", []))
 
     combined_email_text = " ".join(
@@ -214,7 +344,7 @@ def check_h10(generated: dict, research: dict) -> tuple:
         if word in COMMON_CAPS:
             continue
         if word.lower() not in allowed:
-            return (True, f"H10: name '{word}' not found in brief")
+            return (True, f"H10 (advisory): name '{word}' not found in brief")
     return (False, "")
 
 
@@ -226,30 +356,76 @@ def check_h11(generated: dict) -> tuple:
 
 
 def check_h12(generated: dict, research: dict) -> tuple:
+    """INTERNAL - NEVER REFERENCE material surfacing in the emails.
+
+    Agent 1 fills `sensitive_items` with exact quoted fragments, a sentence
+    each. The old form of this check took the first three tokens of that
+    sentence, minus a ten-word stopword list, and failed on any of them
+    appearing anywhere in ~500 words of copy. Being positional, it tested
+    whichever words happened to open the quote, which are its most generic
+    ones: "Budget was cut after their CFO left" yields budget/cut/after, and
+    every sequence ever written contains "after".
+
+    What actually constitutes a leak is narrower, so this looks for two things:
+      (a) a proper noun from the quote — the competitor or provider name that
+          identifies the record — unless it is a name the copy is entitled to
+          use anyway (the recipient, a colleague, their company);
+      (b) four consecutive words of the quote reproduced in the copy, which is
+          quoting or paraphrasing close enough to count.
+
+    Known gap: a proper noun that OPENS a sensitive fragment ("Beepo undercut
+    us on price.") is not distinguishable from ordinary sentence-initial
+    capitalisation, so (a) misses it unless it also appears mid-sentence. The
+    prompt's own ban on naming another provider is the primary control here;
+    this check is the net beneath it, not a substitute for it.
+    """
     sensitive = research.get("sensitive_items") or []
     if not sensitive:
         return (False, "")
-    stopwords = {"the", "and", "for", "was", "had", "with", "from", "that", "this", "they"}
-    email_text = _all_email_text(generated).lower()
+
+    allowed = {n.lower() for n in research.get("allowed_names", [])}
+    email_text = _all_email_text(generated)
+    email_grams = _ngrams(email_text.lower())
+
     for item in sensitive:
-        tokens = [
-            t for t in re.findall(r"\b\w{3,}\b", item.lower())
-            if t not in stopwords
-        ]
-        for token in tokens[:3]:
-            if token in email_text:
-                return (True, f"H12: INTERNAL token '{token}' found in emails")
+        for noun in _proper_nouns(item):
+            if noun in COMMON_CAPS or noun.lower() in allowed:
+                continue
+            if re.search(rf"\b{re.escape(noun)}\b", email_text, re.IGNORECASE):
+                return (True, f"H12: INTERNAL name '{noun}' found in emails")
+        for gram in _ngrams(item.lower()):
+            if gram in email_grams:
+                return (True, f"H12: INTERNAL phrase '{gram}' found in emails")
     return (False, "")
 
 
 # ---------------------------------------------------------------------------
-# Hard check functions H13-H18 (v1.1 amendments)
+# Hard check functions H13-H18 (v1.1 amendments), plus H19 (local, no spec
+# number — see its docstring)
 # ---------------------------------------------------------------------------
 
 
+def _call_note_words(body: str) -> int:
+    """Word count of a call note, discounting its TIMEZONE line.
+
+    Checks 13 and 17 pull against each other on exactly the records that need
+    both: a tersely-filled US call1 lands on 100 words with the TIMEZONE line
+    and 89 without, so charging the note for a label the spec obliges it to
+    carry would hard-fail US and UK records on their geography. That is the
+    same collision §6.1's caps had with check 14, resolved the same way — the
+    caps govern the briefing the model composes, not the mandated scaffolding
+    around it. See config/call_note_boilerplate.py.
+    """
+    section = _label_section(body, "TIMEZONE", CALL_LABELS + ("TIMEZONE",))
+    if not section.strip():
+        return _count_words(body)
+    # +1 for the "TIMEZONE:" label itself, which _label_section excludes.
+    return _count_words(body) - _count_words(section) - 1
+
+
 def check_h13(generated: dict) -> tuple:
-    call1_wc = _count_words(generated["call1"].get("body", ""))
-    call2_wc = _count_words(generated["call2"].get("body", ""))
+    call1_wc = _call_note_words(generated["call1"].get("body", ""))
+    call2_wc = _call_note_words(generated["call2"].get("body", ""))
     pin_wc = _count_words(generated["pin"].get("body", ""))
     if call1_wc > CALL_WORD_MAX:
         return (True, f"H13: call1 has {call1_wc} words (max {CALL_WORD_MAX})")
@@ -260,11 +436,28 @@ def check_h13(generated: dict) -> tuple:
     return (False, "")
 
 
-def check_h14(generated: dict) -> tuple:
-    for key in CALL_KEYS:
+def check_h14(generated: dict, research: dict) -> tuple:
+    for key in ("call1", "call2"):
         body = generated[key].get("body", "")
-        if "history" not in body.lower():
-            return (True, f"H14: {key} body missing HISTORY label")
+        for label in CALL_LABELS:
+            if not _has_label(body, label):
+                return (True, f"H14: {key} missing '{label}' label")
+
+    pin_body = generated["pin"].get("body", "")
+    for label in PIN_LABELS:
+        if not _has_label(pin_body, label):
+            return (True, f"H14: pin missing '{label}' label")
+
+    # The invention detector's inverse: the previous rep is the one name that
+    # MUST appear, because it is the caller's only bridge into the relationship.
+    prev_rep = (research.get("handover_first_name") or "").strip()
+    if prev_rep:
+        history = _label_section(generated["call1"].get("body", ""), "HISTORY", CALL_LABELS)
+        if prev_rep.lower() not in history.lower():
+            return (True, f"H14: call1 HISTORY does not name previous rep '{prev_rep}'")
+        why = _label_section(pin_body, "WHY", PIN_LABELS)
+        if prev_rep.lower() not in why.lower():
+            return (True, f"H14: pin WHY does not name previous rep '{prev_rep}'")
     return (False, "")
 
 
@@ -290,24 +483,62 @@ def check_h16(generated: dict, research: dict) -> tuple:
 
 
 def check_h17(generated: dict, research: dict) -> tuple:
+    """Amendment check 17: US/UK call notes must carry the TIMEZONE line.
+
+    The rep dialling a US or UK record needs to know when it is reasonable to
+    ring; §6.1 and §6.2 both carry the label, §6.3's pin skeleton does not, so
+    this looks at call1 and call2 only.
+
+    Absence is the failure. A TIMEZONE line on a record that does not need one
+    is not checked: the prompt says US/UK only, but hard-failing a record for
+    carrying a line too many would drop a valid candidate over a note the
+    prospect never sees.
+    """
     geo = research.get("geo", "AU")
     if geo not in ("US", "UK"):
         return (False, "")
-    email_text = _all_email_text(generated).lower()
-    if "fortnight" in email_text:
-        return (True, f"H17: 'fortnight' found in emails for {geo} record")
+    for key in ("call1", "call2"):
+        if not _has_label(generated[key].get("body", ""), "TIMEZONE"):
+            return (True, f"H17: {key} missing TIMEZONE line for {geo} record")
     return (False, "")
 
 
 def check_h18(generated: dict) -> tuple:
-    if "sequence" not in generated["pin"].get("body", "").lower():
-        return (True, "H18: pin body missing SEQUENCE MAP reference")
+    section = _label_section(generated["pin"].get("body", ""), "SEQUENCE", PIN_LABELS)
+    if not section.strip():
+        return (True, "H18: pin body missing SEQUENCE line")
+    # Collapse the model's line wrapping before comparing; everything else about
+    # the line is fixed.
+    actual = " ".join(section.split())
+    if actual != SEQUENCE_LINE:
+        return (True, f"H18: pin SEQUENCE line is '{actual}', expected '{SEQUENCE_LINE}'")
+    return (False, "")
+
+
+def check_h19(generated: dict, research: dict) -> tuple:
+    """Dialect-marked spelling on a US record.
+
+    H19 is a local number, not a spec one. §3.6.3 and the system prompt both
+    ban dialect-marked spelling on US records ("say two weeks, never
+    fortnight"), but neither §7.1 nor the v1.1 amendments ever turned that
+    into a numbered check. It was written as check_h17, which displaced the
+    amendment's real check 17 (the TIMEZONE line) — see
+    .planning/phases/05-lint-assembly/05-01-PLAN.md line 128, where the two
+    are conflated. Both rules are wanted, so they now sit side by side.
+
+    UK records keep British spelling, so this is US-only.
+    """
+    if research.get("geo", "AU") != "US":
+        return (False, "")
+    if "fortnight" in _all_email_text(generated).lower():
+        return (True, "H19: 'fortnight' found in emails for US record")
     return (False, "")
 
 
 # ---------------------------------------------------------------------------
 # Soft warning functions W01-W04 (W05 cross-contact check dropped — no longer
-# meaningful when each contact runs in an isolated invocation)
+# meaningful when each contact runs in an isolated invocation). check_h10 runs
+# here too, demoted from the hard list; see its docstring.
 # ---------------------------------------------------------------------------
 
 
@@ -321,16 +552,10 @@ def check_w01(generated: dict) -> tuple:
 
 
 def check_w02(generated: dict) -> tuple:
-    def ngrams(text, n=4):
-        words = text.split()
-        if len(words) < n:
-            return set()
-        return {" ".join(words[i:i + n]) for i in range(len(words) - n + 1)}
-
     seen: dict = {}
     for idx, key in enumerate(EMAIL_KEYS):
         body = generated[key].get("body", "").lower()
-        for ng in ngrams(body):
+        for ng in _ngrams(body):
             if ng in seen:
                 prev_idx = seen[ng]
                 return (True, f"W02: 4-word phrase '{ng}' repeated in e{prev_idx + 1} and e{idx + 1}")
@@ -368,22 +593,22 @@ def run_lint(generated: dict, research: dict) -> tuple:
     hard_checks = [
         lambda: check_h01(generated),
         lambda: check_h02(generated),
-        lambda: check_h03(generated),
-        lambda: check_h04(generated),
+        lambda: check_h03(generated, research),
+        lambda: check_h04(generated, research),
         lambda: check_h05(generated),
         lambda: check_h06(generated, research),
         lambda: check_h07(generated),
         lambda: check_h08(generated),
         lambda: check_h09(generated),
-        lambda: check_h10(generated, research),
         lambda: check_h11(generated),
         lambda: check_h12(generated, research),
         lambda: check_h13(generated),
-        lambda: check_h14(generated),
+        lambda: check_h14(generated, research),
         lambda: check_h15(generated),
         lambda: check_h16(generated, research),
         lambda: check_h17(generated, research),
         lambda: check_h18(generated),
+        lambda: check_h19(generated, research),
     ]
 
     hard_failures = []
@@ -398,6 +623,7 @@ def run_lint(generated: dict, research: dict) -> tuple:
         lambda: check_w02(generated),
         lambda: check_w03(generated),
         lambda: check_w04(generated, research),
+        lambda: check_h10(generated, research),
     ]
     for fn in warn_checks:
         warned, reason = fn()
@@ -444,7 +670,12 @@ def main():
         hard_failures, soft_warnings = run_lint(generated, research)
 
         if hard_failures:
-            print(f"LINT FAIL (attempt 1) {contact_id}: {hard_failures[0]}", file=sys.stderr)
+            # Every failure, not just the first: regeneration is driven by the
+            # whole list, and attempt 1's list is otherwise lost the moment we
+            # overwrite `generated`.
+            attempt1 = "; ".join(hard_failures)
+            print(f"LINT FAIL (attempt 1) {contact_id}: {attempt1}", file=sys.stderr)
+            write_dlq(contact_id, "", "lint_attempt1", attempt1, 0)
             try:
                 generated = _regenerate_contact(contact_id, research)
                 hard_failures, soft_warnings = run_lint(generated, research)
@@ -454,8 +685,9 @@ def main():
                 sys.exit(1)
 
         if hard_failures:
-            write_dlq(contact_id, "", "lint_hard_fail", "; ".join(hard_failures), 0)
-            print(f"LINT FAIL (attempt 2, flagged) {contact_id}: {hard_failures[0]}", file=sys.stderr)
+            joined = "; ".join(hard_failures)
+            write_dlq(contact_id, "", "lint_hard_fail", joined, 0)
+            print(f"LINT FAIL (attempt 2, flagged) {contact_id}: {joined}", file=sys.stderr)
             sys.exit(1)
 
         if soft_warnings:

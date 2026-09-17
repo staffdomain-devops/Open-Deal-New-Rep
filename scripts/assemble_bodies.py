@@ -1,4 +1,9 @@
-"""assemble_bodies.py — Append link placeholders to E2 and E5 email bodies.
+"""assemble_bodies.py — Append the code-supplied parts of each deliverable.
+
+Two jobs, both deliberately AFTER lint:
+  - Link placeholders onto the E2 and E5 email bodies (spec §6).
+  - The fixed boilerplate lines onto the call notes and pin note, which the
+    model does not generate (see config/call_note_boilerplate.py for why).
 
 Usage:
     python scripts/assemble_bodies.py <contact_id>
@@ -6,15 +11,38 @@ Usage:
 
 import json
 import os
+import re
 import sys
 
+from config.call_note_boilerplate import CALL2_WHY, PIN_RULES, call1_why
 from utils import write_dlq
 
 RUNNER_TEMP = os.environ.get("RUNNER_TEMP", ".")
 
+_WHY_THIS_CALL_RE = re.compile(r"^[ \t]*WHY THIS CALL\b[^\n:]*:", re.IGNORECASE | re.MULTILINE)
+_RULES_RE = re.compile(r"^[ \t]*RULES\b[^\n:]*:", re.IGNORECASE | re.MULTILINE)
+
 
 def _append_placeholder(body: str, placeholder: str) -> str:
     return body + "\n" + placeholder
+
+
+def _prepend_why(body: str, why_line: str) -> str:
+    """Put the fixed WHY THIS CALL line at the top of a call note.
+
+    No-op if the model emitted one anyway, so a prompt that drifts produces a
+    note that is merely non-canonical rather than one with two opening lines.
+    """
+    if _WHY_THIS_CALL_RE.search(body):
+        return body
+    return why_line + "\n" + body.lstrip("\n")
+
+
+def _append_rules(body: str) -> str:
+    """Put the fixed RULES block at the bottom of the pin note."""
+    if _RULES_RE.search(body):
+        return body
+    return body.rstrip("\n") + "\n" + PIN_RULES
 
 
 def main():
@@ -31,8 +59,8 @@ def main():
             generated = json.load(f)
 
         assembled = {k: v for k, v in generated.items()}
-        assembled["e2"] = dict(generated["e2"])
-        assembled["e5"] = dict(generated["e5"])
+        for key in ("e2", "e5", "call1", "call2", "pin"):
+            assembled[key] = dict(generated[key])
 
         case_study = generated.get("case_study", "case study")
         assembled["e2"]["body"] = _append_placeholder(
@@ -43,6 +71,13 @@ def main():
             generated["e5"]["body"],
             "[Insert rep booking link here]",
         )
+
+        assembled["call1"]["body"] = _prepend_why(
+            generated["call1"]["body"],
+            call1_why(generated.get("contact_first_name", "")),
+        )
+        assembled["call2"]["body"] = _prepend_why(generated["call2"]["body"], CALL2_WHY)
+        assembled["pin"]["body"] = _append_rules(generated["pin"]["body"])
 
         out_path = os.path.join(RUNNER_TEMP, f"assembled_{contact_id}.json")
         with open(out_path, "w", encoding="utf-8") as f:

@@ -197,34 +197,93 @@ OUTPUT. Return ONLY valid JSON, no preamble, no markdown fences:
  "call2":{"body":"..."},
  "pin":{"body":"..."}}
 call1, call2 and pin are INTERNAL notes for the salesperson, never seen by the
-recipient. Write them in plain telegraphic English following the exact labelled
-formats given in the brief. They are the one place the record's real outcome
-must appear, including anything marked INTERNAL - NEVER REFERENCE: state it
-plainly under HOW IT ENDED, and when you do, you must also write a DO NOT SAY
-line telling the salesperson what can never be voiced and what the on-record
-phrasing is. The five emails remain absolutely forbidden from carrying that
-material. The salesperson has never spoken to this contact: the previous rep
-has left, and everything the salesperson knows comes from these notes, so
-HISTORY must name the previous rep and anchor when contact last happened.
+recipient. Write them in plain telegraphic English, following the exact
+labelled skeletons below. Every label shown is mandatory: reproduce it on its
+own line, spelled exactly as shown, in the order shown, one label per line.
+DO NOT SAY is the only optional label, and only when the brief carries nothing
+that must never be voiced. TIMEZONE is conditional in the same way, and the
+brief decides it, not you: if the brief carries a TIMEZONE line, call1 and
+call2 must BOTH carry one too, saying the same thing in fewer words. If the
+brief carries no TIMEZONE line, neither note has one. Do not infer it from
+the country yourself. When you are short of words, compress what follows a
+label. Never drop a label, never merge two labels onto one line, and never
+let the last label fall off the end of the note.
 
-call1 only, must end with a section labelled IF VOICEMAIL: a single short
-scripted line (10-15 words) the salesperson can read out if the call isn't
-picked up, in the same telegraphic register as the rest of the note, never
-using the phrase "catch up". pin must include one compact line labelled
-SEQUENCE MAP: naming the five send days and topics in a single breath (e.g.
-"D1 handover, D5 case study, D10 industry angle, D15 update, D21 ask") so the
-salesperson sees at a glance what has gone out and what's still to come.
+These notes are the one place the record's real outcome must appear, including
+anything marked INTERNAL - NEVER REFERENCE: state it plainly under HOW IT
+ENDED, and when you do, you must also write a DO NOT SAY line telling the
+salesperson what can never be voiced and what the on-record phrasing is. The
+five emails remain absolutely forbidden from carrying that material. The
+salesperson has never spoken to this contact: the previous rep has left, and
+everything the salesperson knows comes from these notes, so call1 HISTORY and
+pin WHY must both name the previous rep, and HISTORY must anchor when contact
+last happened.
 
-Call notes: aim for 90-95 words including the IF VOICEMAIL line, 100 words is
-a hard ceiling, not a target - treat landing at or above it as a failure. Pin
-note: aim for 115-120 words including the SEQUENCE MAP line, 130 is the hard
-ceiling. No greeting, no sign-off, no persuasion — these are briefings, not
-emails. If HISTORY, HOW IT ENDED, DO NOT SAY, and IF VOICEMAIL are fighting
-for space, compress DO NOT SAY to a bare phrase-to-avoid and its replacement,
-not a full sentence, and keep IF VOICEMAIL to one plain sentence.
-Body text uses \\n\\n between paragraphs. The greeting and the [Rep first name]
-sign-off are part of the body. Do not include any URL except the single inline
-url in e3 and the single inline url in e4, exactly as given in the brief."""
+CALL1 (Day 7, the introduction call). Begin at WHO. Its WHY THIS CALL opening
+line is fixed boilerplate that code adds for you, so do not write one:
+TIMEZONE: {only if the brief has a TIMEZONE line, one short line on when to dial}
+WHO: {name, role, company, one-line context}
+HISTORY: {previous rep's first name, when they last actually made contact,
+what the original conversation was about, one line}
+HOW IT ENDED: {real outcome, including anything the emails held back}
+DO NOT SAY: {anything on record that must never be voiced, omit line if none}
+EMAILS SO FAR: E1 (handover from {previous rep first name}), E2 ({case study
+name}). {Reply status.}
+GOAL: {the single thing this call is for, usually the E3 question, asked live}
+IF VOICEMAIL: First name, "wanted to introduce myself properly rather than
+keep emailing," no detail.
+
+Keep "introduce myself" in that voicemail line and never write "catch up": the
+salesperson has no prior contact to catch up on. IF VOICEMAIL is the last line
+of the note and so the easiest to lose when space runs short. It is never the
+thing you drop.
+
+CALL2 (Day 17, the booking attempt). Begin at WHO. Its WHY THIS CALL line is
+also added by code:
+TIMEZONE: {as call1}
+WHO: {name, role, company, location}
+HISTORY: {old deal, when, how far it got}
+HOW IT ENDED: {real outcome, truth included}
+DO NOT SAY: {omit if none}
+EMAILS SO FAR: E1 (handover from {previous rep}), E2 ({case study}), E3
+({angle}), E4 ({the what's-changed news, in three or four words}).
+{Reply status.}
+GOAL: Book the 15 minutes. Offer to bring {role-specific} profiles to the
+call. E5 fires Day 21 either way.
+IF VOICEMAIL: Reference E4 briefly, "sent through what's changed, worth 15
+minutes."
+
+PIN (the contact-record note the new owner reads first). End at SEQUENCE. The
+RULES block is fixed boilerplate that code adds, so do not write one:
+=== LANE A RE-ENGAGEMENT (OWNER CHANGED) - READ BEFORE ANY TOUCH ===
+WHY: Past prospect, real conversations, never became a client. {Previous rep
+first name} owned this account and has left the business. You are the new
+owner introducing yourself. Warm handover, not cold outbound.
+STORY: {role/company shape, role(s) discussed, key colleagues, one or two
+lines}
+HOW IT ENDED: {real outcome, truth included}
+DO NOT SAY: {omit line if none}
+SEQUENCE: E1 D1 · E2 D5 · Call D7 · E3 D10 · E4 D15 · Call D17 · E5 D21.
+
+That SEQUENCE line is checked character for character. Write it exactly as
+shown, with no enrolment date: you are not given one and must not invent one.
+
+LENGTH OF THE NOTES. call1 and call2: aim for 75 words, 100 is a hard ceiling,
+not a target, and landing at or above it is a failure. pin: aim for 95 words,
+130 is the hard ceiling. The lines code adds do not count against you. No
+greeting, no sign-off, no persuasion: these are briefings, not emails. If the
+labels are fighting for space, compress DO NOT SAY to a bare phrase-to-avoid
+and its replacement rather than a full sentence, and tighten WHO and STORY.
+Cut words inside a label, never a label.
+
+Body text uses \\n\\n between paragraphs in the five emails; the call notes and
+the pin put each labelled line on its own single line. The greeting and the
+[Rep first name] sign-off are part of the email body. Write that sign-off as
+the literal text [Rep first name], square brackets included. Never replace it
+with a real name, your own name, or the previous rep's name: the sender's name
+is filled in downstream and is not yours to choose. Do not include any URL
+except the single inline url in e3 and the single inline url in e4, exactly as
+given in the brief. call1, call2 and pin carry no URLs at all."""
 
 
 def get_system_prompt() -> str:

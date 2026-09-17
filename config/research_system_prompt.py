@@ -79,6 +79,14 @@ and that copy must stay geography-neutral. US specifically: instruct avoiding
 dialect-marked spelling ("fortnight", etc). UNRESOLVED: no country data could
 be resolved — instruct copy to stay geography-neutral, the same as NZ/US/UK.
 
+US and UK only: also write the TIMEZONE line of the brief. The caller works
+an Australian day and this contact does not, so the line names the country
+and tells the caller to dial inside the recipient's local business hours
+rather than their own. Keep it to one short sentence, and state nothing you
+were not given: you have the country, not the city, so never name a specific
+timezone, offset, or clock time. Omit the line entirely for AU, NZ and
+UNRESOLVED records — those callers need no warning.
+
 STEP 6 — ASSEMBLE THE BRIEF. Write "brief_text" as a single plain-text block,
 in EXACTLY this field order (omit no section, even when a branch says "none"):
 
@@ -87,6 +95,9 @@ JOB TITLE: {jobtitle or "not recorded"}
 COMPANY: {company name}
 INDUSTRY: {industry or "not recorded"}
 COUNTRY: {resolved geo, spelled out, with the geo-neutral instruction appended for non-AU}
+TIMEZONE: {US and UK records only — one short line telling the caller to dial
+  inside this contact's local business hours, not their own. Omit this whole
+  line for AU, NZ and UNRESOLVED records.}
 
 HANDOVER: The last person to contact them was {first name} ({call|email}, {date}).
 {first name} has left the business. Open email 1 by saying you have recently

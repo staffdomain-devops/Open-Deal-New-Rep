@@ -110,7 +110,8 @@ LIVE HIRING SIGNALS (public job ads): {role titles + months, if any — omit if 
 CASE STUDY FOR EMAIL 2: {routing.case_study}. Do not describe its contents.
 EMAIL 3 INLINE PAGE: {routing.email3_url}
 EMAIL 4 INLINE PAGE: {routing.email4_url}
-EMAIL 1 CLOSE: Use close option {close.option} from the close bank.
+EMAIL 1 CLOSE: Use this exact line, word for word, no paraphrase (close bank
+option {close.option}): "{close.text}"
 
 OUTPUT. Return ONLY valid JSON, no preamble, no markdown fences:
 {"brief_text": "...",

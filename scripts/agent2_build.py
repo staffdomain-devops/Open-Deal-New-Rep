@@ -7,6 +7,12 @@ Reads $RUNNER_TEMP/research_{id}.json (written by agent1_research.py), calls
 Claude with the locked voice/mechanics system prompt to generate the 8
 deliverables (5 emails + 2 call-task notes + 1 pin note), and writes
 $RUNNER_TEMP/generated_{id}.json.
+
+Eligibility is decided upstream (the HubSpot workflow that fires the webhook,
+then Agent 1's brief assembly); every contact_id this script receives is
+expected to already be an eligible candidate. This script does no hold/
+exclude filtering of its own — it only analyzes research["brief_text"] and
+generates the deliverables from it.
 """
 
 import json

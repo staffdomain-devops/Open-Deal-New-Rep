@@ -206,8 +206,12 @@ phrasing is. The five emails remain absolutely forbidden from carrying that
 material. The salesperson has never spoken to this contact: the previous rep
 has left, and everything the salesperson knows comes from these notes, so
 HISTORY must name the previous rep and anchor when contact last happened.
-Call notes: 100 words maximum each. Pin note: 130 words maximum. No greeting,
-no sign-off, no persuasion — these are briefings, not emails.
+Call notes: aim for 80-85 words, 100 words is a hard ceiling, not a target -
+treat it as a failure to land at or above it. Pin note: aim for 110-115 words,
+130 is the hard ceiling. No greeting, no sign-off, no persuasion — these are
+briefings, not emails. If HISTORY, HOW IT ENDED, and DO NOT SAY are fighting
+for space, compress DO NOT SAY to a bare phrase-to-avoid and its replacement,
+not a full sentence.
 Body text uses \\n\\n between paragraphs. The greeting and the [Rep first name]
 sign-off are part of the body. Do not include any URL except the single inline
 url in e3 and the single inline url in e4, exactly as given in the brief."""

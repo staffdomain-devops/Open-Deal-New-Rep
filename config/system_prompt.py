@@ -206,12 +206,22 @@ phrasing is. The five emails remain absolutely forbidden from carrying that
 material. The salesperson has never spoken to this contact: the previous rep
 has left, and everything the salesperson knows comes from these notes, so
 HISTORY must name the previous rep and anchor when contact last happened.
-Call notes: aim for 80-85 words, 100 words is a hard ceiling, not a target -
-treat it as a failure to land at or above it. Pin note: aim for 110-115 words,
-130 is the hard ceiling. No greeting, no sign-off, no persuasion — these are
-briefings, not emails. If HISTORY, HOW IT ENDED, and DO NOT SAY are fighting
+
+call1 only, must end with a section labelled IF VOICEMAIL: a single short
+scripted line (10-15 words) the salesperson can read out if the call isn't
+picked up, in the same telegraphic register as the rest of the note, never
+using the phrase "catch up". pin must include one compact line labelled
+SEQUENCE MAP: naming the five send days and topics in a single breath (e.g.
+"D1 handover, D5 case study, D10 industry angle, D15 update, D21 ask") so the
+salesperson sees at a glance what has gone out and what's still to come.
+
+Call notes: aim for 90-95 words including the IF VOICEMAIL line, 100 words is
+a hard ceiling, not a target - treat landing at or above it as a failure. Pin
+note: aim for 115-120 words including the SEQUENCE MAP line, 130 is the hard
+ceiling. No greeting, no sign-off, no persuasion — these are briefings, not
+emails. If HISTORY, HOW IT ENDED, DO NOT SAY, and IF VOICEMAIL are fighting
 for space, compress DO NOT SAY to a bare phrase-to-avoid and its replacement,
-not a full sentence.
+not a full sentence, and keep IF VOICEMAIL to one plain sentence.
 Body text uses \\n\\n between paragraphs. The greeting and the [Rep first name]
 sign-off are part of the body. Do not include any URL except the single inline
 url in e3 and the single inline url in e4, exactly as given in the brief."""

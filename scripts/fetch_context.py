@@ -439,7 +439,12 @@ def check_contact_departure(contact_props: dict, story_notes: list) -> dict:
         return {"flagged": False, "evidence": None}
 
     for note in story_notes:
-        for sentence in re.split(r"(?<=[.!?])\s+|\n+", note):
+        # Split on clause boundaries, not just sentence-ending punctuation:
+        # "Sarah has left the business, spoke to Graeme about..." is one
+        # sentence but two clauses about two different people, and splitting
+        # only on .!? left both halves joined, so the phrase and the
+        # recipient's name matched together despite naming different people.
+        for sentence in re.split(r"(?<=[.!?;,])\s+|\n+", note):
             sentence_lower = sentence.lower()
             name_present = (first and first in sentence_lower) or (
                 last and last in sentence_lower

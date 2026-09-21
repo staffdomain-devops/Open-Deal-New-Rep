@@ -18,7 +18,8 @@ Every new account owner inherits a warm relationship they have never personally 
 
 - [ ] Accept a single contact ID via `repository_dispatch` (HubSpot workflow trigger); process one contact per run
 - [ ] Deterministically fetch company, all company contacts, all company deals, notes (with bot-noise filter), handover name via engagement API
-- [ ] Agent 1 (Research) applies exclusion filters E1–E6 + E7 (contact departed) against the fetched data; notify Teams per-contact on hold/exclude instead of a batch report
+- [ ] E1–E6 exclusion filters against the fetched data — NOT implemented in this repo as of 2026-09-21 (removed from Agent 1 by a later commit; see Key Decisions). Eligibility for E1-E6 is currently assumed to be handled entirely by the upstream HubSpot workflow that fires the webhook, which is not reviewable from this codebase.
+- [x] E7 (contact departed) check — implemented 2026-09-21 as a mechanical Stage 1 check in `scripts/fetch_context.py` (`check_contact_departure`), not in Agent 1 as originally scoped here. Halts that contact (DLQ + Teams notify) before generation runs; does not attempt exclusion judgment beyond this one signal.
 - [ ] Route contact to vertical via industry lookup table (deterministic); assign close bank option (deterministic, random fallback since no cross-run rotation state)
 - [ ] Agent 1 assembles the per-contact research brief (spec §3.7 format) plus a research verdict/reasoning payload
 - [ ] Agent 2 (Build) generates 8 deliverables in one Sonnet call from Agent 1's brief: 5 emails + 2 call notes + 1 pin note
@@ -82,6 +83,8 @@ Reuse `utils.py` from Inbound unchanged — same retry/DLQ patterns apply.
 | Call tasks created manually by rep; pipeline writes briefing to `task_note_1`/`task_note_2` | Simpler pipeline; rep controls task timing | Confirmed 2026-08-21 |
 | Note pinning via engagements API | Verify support at pilot; manual fallback if API doesn't support pinning | — Pending |
 | Close-bank fallback rotation (1↔2) replaced with random choice | The old rotation counter assumed one long-lived batch process; isolated per-contact runs have no shared state to rotate against | Confirmed 2026-09-01 |
+| E1-E6 exclusion filtering left out of this repo entirely (not just out of Agent 1) | Later commits removed exclusion/verdict gating from Agent 1 without replacing it elsewhere; this repo currently trusts the upstream HubSpot workflow to only fire the webhook for eligible contacts | Flagged 2026-09-21 — needs JP confirmation that the HubSpot-side workflow actually enforces E1-E6, since it cannot be verified from this codebase |
+| Contact-departure check (E7) added as mechanical Stage 1 logic, not an Agent 1 judgment call | v1.1 checklist item 17 was otherwise unimplemented; a regex/name-proximity check needs no LLM judgment and can run before any Anthropic API cost is spent | Confirmed 2026-09-21 |
 
 ---
 *Last updated: 2026-09-01 — Rebuilt around a per-contact `repository_dispatch` trigger with a two-agent split (Agent 1 Research → Agent 2 Build), replacing the batch/list-driven pipeline. See `scripts/fetch_context.py`, `scripts/agent1_research.py`, `scripts/agent2_build.py`.*

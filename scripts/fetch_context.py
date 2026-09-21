@@ -80,6 +80,15 @@ JOB_AD_PREFIXES = [
     "Job URL:",
 ]
 
+# v1.1 amendment §9 edge case / launch checklist item 17: the CONTACT
+# THEMSELVES having left their company, discovered on a call or in notes.
+# Distinct from the HANDOVER case (the Staff Domain rep who left) — this is
+# the recipient we are about to email/call no longer being at the company at
+# all. Mechanical proximity check only: no judgment call, just a flag for a
+# human to review before this contact is generated for. See
+# check_contact_departure() below.
+DEPARTURE_PHRASES = ("has left", "no longer with", "moved on from")
+
 # ---------------------------------------------------------------------------
 # Environment and SDK client (fail fast if key is missing)
 # ---------------------------------------------------------------------------
@@ -411,6 +420,39 @@ def resolve_geo(company_props: dict, contact_props: dict) -> str:
     return "UNRESOLVED"
 
 
+def check_contact_departure(contact_props: dict, story_notes: list) -> dict:
+    """Flag notes suggesting the CONTACT (not the previous rep) has left their
+    own company — v1.1 §9 edge case / launch checklist item 17.
+
+    Mechanical proximity check: a sentence must contain both a departure
+    phrase and the contact's own first or last name. This is deliberately
+    narrower than "phrase appears anywhere in the notes", which would also
+    fire on "[colleague] has left the business" or "[previous rep] has left
+    Staff Domain" — sentences this pipeline expects and handles elsewhere.
+
+    Returns {"flagged": bool, "evidence": str | None} (evidence is the
+    matching sentence, truncated, or None if not flagged).
+    """
+    first = (contact_props.get("firstname") or "").strip().lower()
+    last = (contact_props.get("lastname") or "").strip().lower()
+    if not first and not last:
+        return {"flagged": False, "evidence": None}
+
+    for note in story_notes:
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", note):
+            sentence_lower = sentence.lower()
+            name_present = (first and first in sentence_lower) or (
+                last and last in sentence_lower
+            )
+            if not name_present:
+                continue
+            for phrase in DEPARTURE_PHRASES:
+                if phrase in sentence_lower:
+                    return {"flagged": True, "evidence": safe_truncate(sentence.strip(), 300)}
+
+    return {"flagged": False, "evidence": None}
+
+
 def is_only_contact_check(contact_props: dict, all_company_contacts: list) -> bool:
     """Return True if the contact is the sole person with num_contacted_notes >= 1."""
     contacted = [
@@ -467,6 +509,9 @@ def _fetch_one(contact_id: str) -> None:
 
         step = "is_only_contact"
         is_only_contact = is_only_contact_check(contact_props, all_company_contacts)
+
+        step = "check_contact_departure"
+        departure = check_contact_departure(contact_props, story_notes)
     except Exception as exc:
         raise RuntimeError(f"{step}: {exc}") from exc
 
@@ -482,12 +527,23 @@ def _fetch_one(contact_id: str) -> None:
         "handover": handover,
         "geo": geo,
         "is_only_contact": is_only_contact,
+        "contact_departure": departure,
     }
 
     out_path = os.path.join(RUNNER_TEMP, f"context_{contact_id}.json")
     with open(out_path, "w") as f:
         json.dump(record, f, indent=2, default=str)
     print(f"Written {out_path}")
+
+    if departure["flagged"]:
+        # Written to disk above (for reviewer visibility in the artifact) but
+        # still treated as a hold: do not let agent1/agent2 run for a contact
+        # who may no longer be at the company. Not a technical failure, so it
+        # gets its own failed_step rather than being folded into "fetch_context".
+        raise RuntimeError(
+            "check_contact_departure: possible contact departure detected, "
+            f"held for review: {departure['evidence']!r}"
+        )
 
 
 def main():

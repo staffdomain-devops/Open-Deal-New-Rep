@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: in_progress
-stopped_at: "Phase 7 executed — 07-01 (assemble_output.py) and 07-02 (campaign.yml) complete; awaiting human checkpoint: JP must verify workflow_dispatch inputs and artifact behavior in GitHub Actions"
-last_updated: "2026-08-27T00:00:00Z"
+stopped_at: "SUPERSEDED NOTICE (2026-09-21): the Phase 1-7 batch/list-driven architecture this file describes below (fetch_list.py, campaign.yml, assemble_output.py) was replaced on 2026-09-01 by a per-contact repository_dispatch pipeline — see PROJECT.md, which is the up-to-date source of truth on architecture. The live pipeline is scripts/fetch_context.py -> agent1_research.py -> agent2_build.py -> lint.py -> assemble_bodies.py -> write_hubspot.py, orchestrated by .github/workflows/handover.yml. campaign.yml and assemble_output.py described in the (now-stale) phase history below were never carried forward into the new architecture and do not exist in the repo. This file's Phase 1-7 history is kept for record but should not be read as current status; nothing here is a live pending checkpoint."
+last_updated: "2026-09-21T00:00:00Z"
 progress:
   total_phases: 7
   completed_phases: 7
@@ -17,14 +17,14 @@ progress:
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-08-21)
+See: `.planning/PROJECT.md` (updated 2026-09-01 — this is the current source of truth on architecture; the phase history below predates the 2026-09-01 rebuild to a per-contact trigger and is historical record only)
 
 **Core value:** Every new account owner inherits a credible, personalised handover sequence built from the actual file.
-**Current focus:** Phase 7 — CI/CD
+**Current focus:** v1.1 checklist item 17 (contact-departure check) — added 2026-09-21 to scripts/fetch_context.py. Remaining open items: reply-kill sweep mechanism (workflow vs. daily script, undecided), note-pin API support verification at pilot, and the HubSpot-side eligibility workflow (E1-E6) is external to this repo and unverifiable from code alone.
 
 ## Current Phase
 
-**Phase 6: Write-back — Complete**
+**Phase 6: Write-back — Complete** (against the superseded batch architecture; the per-contact write_hubspot.py that actually ships is described in PROJECT.md, not this section)
 Status: 06-01 complete (property schema check + bracket guard + batch write); 06-02 complete (note creation + pin + manual_pin_list fallback)
 
 ## Phase History

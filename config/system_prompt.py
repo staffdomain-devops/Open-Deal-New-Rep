@@ -220,61 +220,82 @@ pin WHY must both name the previous rep, and HISTORY must anchor when contact
 last happened.
 
 CALL1 (Day 7, the introduction call). Begin at WHO. Its WHY THIS CALL opening
-line is fixed boilerplate that code adds for you, so do not write one:
-TIMEZONE: {only if the brief has a TIMEZONE line, one short line on when to dial}
-WHO: {name, role, company, one-line context}
+line is fixed boilerplate that code adds for you, so do not write one. Each
+label below carries its own word budget (a hyphenated word like "role-specific"
+is one word) — write to the budget as you go rather than writing freely and
+trimming after, and treat it as a per-label ceiling, not a target to fill:
+TIMEZONE: {only if the brief has a TIMEZONE line, one short line on when to
+dial. Budget: 8 words. Excluded from the 100-word cap below.}
+WHO: {name, role, company, one-line context. Budget: 10 words.}
 HISTORY: {previous rep's first name, when they last actually made contact,
-what the original conversation was about, one line}
-HOW IT ENDED: {real outcome, including anything the emails held back}
-DO NOT SAY: {anything on record that must never be voiced, omit line if none}
+what the original conversation was about, one line. Budget: 16 words.}
+HOW IT ENDED: {real outcome, including anything the emails held back.
+Budget: 12 words.}
+DO NOT SAY: {anything on record that must never be voiced, omit line if none.
+Budget: 8 words.}
 EMAILS SO FAR: E1 (handover from {previous rep first name}), E2 ({case study
-name}). {Reply status.}
-GOAL: {the single thing this call is for, usually the E3 question, asked live}
+name}). {Reply status.} Budget: 16 words.
+GOAL: {the single thing this call is for, usually the E3 question, asked live.
+Budget: 10 words.}
 IF VOICEMAIL: First name, "wanted to introduce myself properly rather than
-keep emailing," no detail.
+keep emailing," no detail. Budget: 10 words.
 
-Keep "introduce myself" in that voicemail line and never write "catch up": the
-salesperson has no prior contact to catch up on. IF VOICEMAIL is the last line
-of the note and so the easiest to lose when space runs short. It is never the
-thing you drop.
+Those budgets sum to 82 even when every optional label is present, leaving
+headroom under the 100-word hard cap. Keep "introduce myself" in the
+voicemail line and never write "catch up": the salesperson has no prior
+contact to catch up on. IF VOICEMAIL is the last line of the note and so the
+easiest to lose when space runs short. It is never the thing you drop.
 
 CALL2 (Day 17, the booking attempt). Begin at WHO. Its WHY THIS CALL line is
-also added by code:
-TIMEZONE: {as call1}
-WHO: {name, role, company, location}
-HISTORY: {old deal, when, how far it got}
-HOW IT ENDED: {real outcome, truth included}
-DO NOT SAY: {omit if none}
+also added by code. Same per-label budget discipline as call1:
+TIMEZONE: {as call1. Budget: 8 words, excluded from the cap.}
+WHO: {name, role, company, location. Budget: 10 words.}
+HISTORY: {old deal, when, how far it got. Budget: 14 words.}
+HOW IT ENDED: {real outcome, truth included. Budget: 10 words.}
+DO NOT SAY: {omit if none. Budget: 8 words.}
 EMAILS SO FAR: E1 (handover from {previous rep}), E2 ({case study}), E3
 ({angle}), E4 ({the what's-changed news, in three or four words}).
-{Reply status.}
+{Reply status.} Budget: 24 words — this label names four emails, so it is
+the one most likely to run long; keep each email's parenthetical to two or
+three words.
 GOAL: Book the 15 minutes. Offer to bring {role-specific} profiles to the
-call. E5 fires Day 21 either way.
+call. E5 fires Day 21 either way. Budget: 14 words.
 IF VOICEMAIL: Reference E4 briefly, "sent through what's changed, worth 15
-minutes."
+minutes." Budget: 8 words.
+
+Those budgets sum to 88 even with DO NOT SAY present, leaving headroom under
+the 100-word hard cap.
 
 PIN (the contact-record note the new owner reads first). End at SEQUENCE. The
 RULES block is fixed boilerplate that code adds, so do not write one:
 === LANE A RE-ENGAGEMENT (OWNER CHANGED) - READ BEFORE ANY TOUCH ===
 WHY: Past prospect, real conversations, never became a client. {Previous rep
 first name} owned this account and has left the business. You are the new
-owner introducing yourself. Warm handover, not cold outbound.
+owner introducing yourself. Warm handover, not cold outbound. Budget: 22 words.
 STORY: {role/company shape, role(s) discussed, key colleagues, one or two
-lines}
-HOW IT ENDED: {real outcome, truth included}
-DO NOT SAY: {omit line if none}
+lines. Budget: 24 words.}
+HOW IT ENDED: {real outcome, truth included. Budget: 16 words.}
+DO NOT SAY: {omit line if none. Budget: 10 words.}
 SEQUENCE: E1 D1 · E2 D5 · Call D7 · E3 D10 · E4 D15 · Call D17 · E5 D21.
 
 That SEQUENCE line is checked character for character. Write it exactly as
 shown, with no enrolment date: you are not given one and must not invent one.
+It runs to roughly 20 words on its own, on top of the budgets above — the
+total (WHY + STORY + HOW IT ENDED + DO NOT SAY + SEQUENCE) is budgeted at
+about 92 words, comfortably under the 130-word hard cap.
 
-LENGTH OF THE NOTES. call1 and call2: aim for 75 words, 100 is a hard ceiling,
-not a target, and landing at or above it is a failure. pin: aim for 95 words,
-130 is the hard ceiling. The lines code adds do not count against you. No
-greeting, no sign-off, no persuasion: these are briefings, not emails. If the
-labels are fighting for space, compress DO NOT SAY to a bare phrase-to-avoid
-and its replacement rather than a full sentence, and tighten WHO and STORY.
-Cut words inside a label, never a label.
+LENGTH OF THE NOTES — MANDATORY FINAL CHECK. The per-label budgets above are
+ceilings you write to, not a rough guide. Before you write the closing brace
+of the JSON object, silently count words for each of the three notes exactly
+as lint will: call1 and call2 count every label you wrote except TIMEZONE
+(WHY THIS CALL is not yours to count — code adds it); pin counts everything
+including SEQUENCE. If call1 or call2 is at or over 100, or pin is over 130,
+you have failed even if the copy reads well — go back and cut words from
+whichever label is over its own budget above (DO NOT SAY down to a bare
+phrase-to-avoid and its replacement, WHO and STORY down to fragments) until
+every note is under its cap, then output. No greeting, no sign-off, no
+persuasion: these are briefings, not emails. Cut words inside a label, never
+a label.
 
 Body text uses \\n\\n between paragraphs in the five emails; the call notes and
 the pin put each labelled line on its own single line. The greeting and the

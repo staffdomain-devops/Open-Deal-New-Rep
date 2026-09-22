@@ -116,8 +116,13 @@ HARD MECHANICAL RULES.
   entirely (write around them; say "two weeks", never "fortnight").
   Australian English spelling everywhere else.
 - Each email is 45 to 110 words. Shorter is better.
-- Every email ends with [Rep first name] on its own line, nothing after it.
-  No "Kind regards", no "Cheers", no signature block.
+- No greeting line and no sign-off, ever. Do not write "Hi [name]," or any
+  other opening line, and do not write "[Rep first name]", "Kind regards",
+  "Cheers", or any signature block at the end. The sending system adds the
+  greeting and the signature around what you write; you produce ONLY the
+  body content in between. Start directly with the first content sentence
+  (for email 1, that is the handover line) and end on the email's actual
+  last content line (for email 1, the close-bank line).
 - Numbers we are allowed to state: roles are usually scoped in one call;
   candidates typically in front of them inside one to two weeks; a seat generally
   live within about four weeks; the person works only for them, from our office,
@@ -126,9 +131,9 @@ HARD MECHANICAL RULES.
 
 THE FIVE EMAILS.
 
-EMAIL 1, Day 1. The handover introduction. Exactly four content parts:
- (a) Greeting: "Hi {first name},"
- (b) The handover, one short line naming the previous rep from the brief:
+EMAIL 1, Day 1. The handover introduction. Exactly three content parts (no
+greeting — see the no-greeting-no-sign-off rule above):
+ (a) The handover, one short line naming the previous rep from the brief:
      "I've recently taken over your account from {name}." Vary the verb
      (taken over / picked up) but keep it one line. If the brief's HANDOVER
      line says there is no previous handover contact on record, drop this
@@ -136,13 +141,14 @@ EMAIL 1, Day 1. The handover introduction. Exactly four content parts:
      ("I'm the account manager looking after things at Staff Domain now" or
      similar) — never invent a predecessor, never say "taken over" or
      "picked up" when there is no one to have taken over from.
- (c) The proof-of-homework line: one sentence showing you have read the file.
+ (b) The proof-of-homework line: one sentence showing you have read the file.
      Reference what the brief supports: colleagues by first name, the old role,
      the rough timing. If the brief says no deal, reference the relationship
      ("we've been in touch a fair few times over the years without it ever
      turning into a proper conversation"). Never more than two colleague names.
- (d) The close: use the EXACT close from the close bank option named in the
-     brief, word for word. Do not improvise a close.
+ (c) The close: use the EXACT close from the close bank option named in the
+     brief, word for word. Do not improvise a close. This is the last line of
+     the body — nothing follows it.
  NO link. NO ask. NO pitch. Nothing about what Staff Domain does. If email 1
  explains the service, it has failed.
 
@@ -298,13 +304,13 @@ persuasion: these are briefings, not emails. Cut words inside a label, never
 a label.
 
 Body text uses \\n\\n between paragraphs in the five emails; the call notes and
-the pin put each labelled line on its own single line. The greeting and the
-[Rep first name] sign-off are part of the email body. Write that sign-off as
-the literal text [Rep first name], square brackets included. Never replace it
-with a real name, your own name, or the previous rep's name: the sender's name
-is filled in downstream and is not yours to choose. Do not include any URL
-except the single inline url in e3 and the single inline url in e4, exactly as
-given in the brief. call1, call2 and pin carry no URLs at all."""
+the pin put each labelled line on its own single line. None of the five
+emails carries a greeting or a sign-off of any kind — no "Hi [name],", no
+"[Rep first name]", no name of any kind at the top or bottom. The sending
+system adds the greeting and the real sender's signature separately; your
+body is only the content between them. Do not include any URL except the
+single inline url in e3 and the single inline url in e4, exactly as given in
+the brief. call1, call2 and pin carry no URLs at all."""
 
 
 def get_system_prompt() -> str:

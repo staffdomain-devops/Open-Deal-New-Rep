@@ -67,10 +67,14 @@ TEXTAREA_PROPERTY_NAMES = frozenset(
     if prop_name.startswith("email_") or prop_name.startswith("task_note_")
 )
 
-# Intentional bracket patterns that must NOT trigger the bracket guard:
-#   [Rep first name]  — sign-off placeholder (lint H07 requires it)
+# Intentional bracket pattern that must NOT trigger the bracket guard:
 #   [Insert ... ]     — link placeholders appended by assemble_bodies.py
-_ALLOWED_BRACKETS_RE = re.compile(r"\[Rep first name\]|\[Insert [^\]]+\]")
+# "[Rep first name]" used to be allowed here (the old mandated sign-off
+# placeholder). Emails are body-only now — no greeting, no sign-off — so
+# that literal string should never appear in an email property again; if it
+# does, that's a real regression (lint H07 should have already caught it),
+# and this guard is deliberately NOT relaxed to allow it back in.
+_ALLOWED_BRACKETS_RE = re.compile(r"\[Insert [^\]]+\]")
 
 
 def _check_property_schema(client) -> None:

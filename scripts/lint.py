@@ -33,6 +33,10 @@ WORD_COUNT_MAX = 120
 CALL_WORD_MAX = 100
 PIN_WORD_MAX = 130
 
+# H07: emails are body-only now, no greeting or sign-off (see check_h07).
+GREETING_RE = re.compile(r"^\s*(hi|hello|hey)\b", re.IGNORECASE)
+SIGNOFF_MARKERS = ("[rep first name]", "kind regards", "cheers", "best regards")
+
 # Required labelled sections (amendment check 14). Two kinds of label are
 # deliberately absent:
 #   - DO NOT SAY is conditional on the brief carrying sensitive material, and
@@ -285,12 +289,23 @@ def check_h06(generated: dict, research: dict) -> tuple:
 
 
 def check_h07(generated: dict) -> tuple:
+    """No greeting or sign-off: emails are body-only.
+
+    Originally required every body to end with the literal '[Rep first
+    name]' placeholder. That placeholder (and the "Hi [name]," greeting) is
+    no longer wanted at all — the sending system adds both separately — so
+    this now checks the opposite: that no greeting or sign-off leaked in.
+    """
     for key in EMAIL_KEYS:
         body = generated[key].get("body", "")
         lines = [l for l in body.splitlines() if l.strip()]
-        if not lines or lines[-1] != "[Rep first name]":
-            last = lines[-1] if lines else "(empty)"
-            return (True, f"H07: {key} last non-empty line is '{last}', expected '[Rep first name]'")
+        if not lines:
+            return (True, f"H07: {key} body is empty")
+        if GREETING_RE.match(lines[0]):
+            return (True, f"H07: {key} body opens with a greeting ('{lines[0]}'); body-only, no greeting")
+        last_lower = lines[-1].strip().lower()
+        if any(marker in last_lower for marker in SIGNOFF_MARKERS):
+            return (True, f"H07: {key} body ends with a sign-off ('{lines[-1]}'); body-only, no sign-off")
     return (False, "")
 
 

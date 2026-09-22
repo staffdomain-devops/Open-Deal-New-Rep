@@ -10,14 +10,8 @@ import re
 import sys
 from datetime import datetime, timezone
 
-from agent2_build import (
-    MAX_TOKENS_BUDGETS,
-    MaxTokensError,
-    OutputParseError,
-    _call_realtime,
-    parse_output,
-    write_generated,
-)
+from agent2_build import OutputParseError, write_generated
+from agent3_fix import fix_generated
 from config.call_note_boilerplate import SEQUENCE_LINE
 from utils import write_dlq
 
@@ -634,15 +628,18 @@ def run_lint(generated: dict, research: dict) -> tuple:
 
 
 # ---------------------------------------------------------------------------
-# Regeneration wrapper
+# Fix wrapper (Agent 3) — replaces the old blind full-regeneration, which in
+# production once "fixed" call2's word count by handing back a call1 that
+# was now itself over the cap. Agent 3 is told exactly which checks failed
+# and on which deliverable, and the code enforces that everything else comes
+# back unchanged regardless of what the model does — see agent3_fix.py.
 # ---------------------------------------------------------------------------
 
 
-def _regenerate_contact(contact_id: str, research: dict) -> dict:
-    response = _call_realtime(research["brief_text"], MAX_TOKENS_BUDGETS[0])
-    parsed = parse_output(response, contact_id)
-    write_generated(contact_id, parsed, research)
-    return parsed
+def _fix_contact(contact_id: str, research: dict, generated: dict, hard_failures: list) -> dict:
+    fixed = fix_generated(contact_id, research, generated, hard_failures)
+    write_generated(contact_id, fixed, research)
+    return fixed
 
 
 # ---------------------------------------------------------------------------
@@ -670,18 +667,19 @@ def main():
         hard_failures, soft_warnings = run_lint(generated, research)
 
         if hard_failures:
-            # Every failure, not just the first: regeneration is driven by the
-            # whole list, and attempt 1's list is otherwise lost the moment we
+            # Every failure, not just the first: the fix call is driven by
+            # the whole list (Agent 3 needs to know every deliverable that's
+            # broken), and attempt 1's list is otherwise lost the moment we
             # overwrite `generated`.
             attempt1 = "; ".join(hard_failures)
             print(f"LINT FAIL (attempt 1) {contact_id}: {attempt1}", file=sys.stderr)
             write_dlq(contact_id, "", "lint_attempt1", attempt1, 0)
             try:
-                generated = _regenerate_contact(contact_id, research)
+                generated = _fix_contact(contact_id, research, generated, hard_failures)
                 hard_failures, soft_warnings = run_lint(generated, research)
-            except (MaxTokensError, OutputParseError) as exc:
-                write_dlq(contact_id, "", "lint_regenerate", str(exc), 0)
-                print(f"REGEN FAIL {contact_id}: {exc}", file=sys.stderr)
+            except OutputParseError as exc:
+                write_dlq(contact_id, "", "lint_fix", str(exc), 0)
+                print(f"FIX FAIL {contact_id}: {exc}", file=sys.stderr)
                 sys.exit(1)
 
         if hard_failures:

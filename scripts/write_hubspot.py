@@ -53,6 +53,20 @@ EMAIL_PROP_NAMES = frozenset(
     if prop_name.startswith("email_") or prop_name.startswith("subject_")
 )
 
+# Only properties that actually carry \n-separated paragraphs/labelled lines
+# need to be 'textarea' (multi-line text) — a single-line 'text' property
+# silently strips newlines, which is a real bug for these (the recipient
+# gets one wall-of-text block instead of paragraphs). subject_1-5 are
+# deliberately excluded: lint caps them at 45 chars, one line, so they never
+# carry a line break, and this portal already has them provisioned as plain
+# single-line text — other pipelines writing to them successfully confirms
+# that's the correct type, not a misconfiguration to "fix" in HubSpot.
+TEXTAREA_PROPERTY_NAMES = frozenset(
+    prop_name
+    for prop_name, _ in PROPERTY_MAP
+    if prop_name.startswith("email_") or prop_name.startswith("task_note_")
+)
+
 # Intentional bracket patterns that must NOT trigger the bracket guard:
 #   [Rep first name]  — sign-off placeholder (lint H07 requires it)
 #   [Insert ... ]     — link placeholders appended by assemble_bodies.py
@@ -60,17 +74,28 @@ _ALLOWED_BRACKETS_RE = re.compile(r"\[Rep first name\]|\[Insert [^\]]+\]")
 
 
 def _check_property_schema(client) -> None:
-    """Verify all 12 HubSpot contact properties have field_type == 'textarea'."""
-    for prop_name, _ in PROPERTY_MAP:
+    """Verify the multi-line body/task-note properties are 'textarea'.
+
+    subject_1-5 are intentionally NOT checked here — see
+    TEXTAREA_PROPERTY_NAMES for why a single-line 'text' property is correct
+    for them, not a bug to flag.
+    """
+    for prop_name in TEXTAREA_PROPERTY_NAMES:
         resp = client.crm.properties.core_api.get_by_name("contacts", prop_name)
         actual = resp.field_type
         if actual != "textarea":
             print(
                 f"ERROR: HubSpot property '{prop_name}' has field_type='{actual}', "
-                f"expected 'textarea'. Fix in HubSpot before running write-back."
+                f"expected 'textarea' (it carries multi-paragraph content that would "
+                f"otherwise silently lose its line breaks). Fix in HubSpot before "
+                f"running write-back."
             )
             sys.exit(1)
-    print("Property schema check passed: all 12 properties are textarea.")
+    print(
+        f"Property schema check passed: all {len(TEXTAREA_PROPERTY_NAMES)} "
+        f"multi-line properties are textarea (subject_1-5 are not checked; "
+        f"single-line text is correct for them)."
+    )
 
 
 def _bracket_guard(assembled: dict) -> None:

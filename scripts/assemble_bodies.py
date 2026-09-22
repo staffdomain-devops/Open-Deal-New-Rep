@@ -62,11 +62,16 @@ def main():
         for key in ("e2", "e5", "call1", "call2", "pin"):
             assembled[key] = dict(generated[key])
 
-        case_study = generated.get("case_study", "case study")
-        assembled["e2"]["body"] = _append_placeholder(
-            generated["e2"]["body"],
-            f"[Insert {case_study} case study link here]",
-        )
+        # Only append the manual-fill placeholder when routing had no
+        # verified case-study URL. When it did, the model already wove the
+        # real URL into the body inline (lint H06 enforces this), so
+        # appending a placeholder on top would be a second, unwanted link.
+        if not generated.get("case_study_url"):
+            case_study = generated.get("case_study", "case study")
+            assembled["e2"]["body"] = _append_placeholder(
+                generated["e2"]["body"],
+                f"[Insert {case_study} case study link here]",
+            )
         assembled["e5"]["body"] = _append_placeholder(
             generated["e5"]["body"],
             "[Insert rep booking link here]",

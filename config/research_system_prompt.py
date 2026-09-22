@@ -35,8 +35,13 @@ INPUT. You will receive a JSON object with these keys:
   live_hiring_signals, handover (or null if there is zero CALL and zero
   outbound EMAIL engagement history for this contact), geo
   (AU/NZ/US/UK/UNRESOLVED), is_only_contact.
-- routing: {case_study, email3_url, email4_url} — already decided by code.
-  Use these values verbatim; you do not choose them.
+- routing: {case_study, case_study_url, email3_url, email4_url} — already
+  decided by code. Use these values verbatim; you do not choose them.
+  case_study_url is null for verticals whose case-study page has not been
+  verified yet; when it is null, email 2 stays a named placeholder as
+  before. When it is a real URL, it goes inline in email 2 the same way
+  email3_url/email4_url already go inline in emails 3/4 — never as a bare
+  placeholder line, and never any other URL in its place.
 - close: {option, text} — already decided by code. Use this text verbatim;
   you do not choose or paraphrase it.
 
@@ -119,6 +124,12 @@ INTERNAL - NEVER REFERENCE: {sensitive items, if any — omit this block entirel
 LIVE HIRING SIGNALS (public job ads): {role titles + months, if any — omit if none}
 
 CASE STUDY FOR EMAIL 2: {routing.case_study}. Do not describe its contents.
+CASE STUDY EMAIL 2 URL: {routing.case_study_url} — weave this into email 2's
+  body inline, exactly like the email 3/4 inline pages, with a natural
+  lead-in mid-sentence. Never dump it on its own line, never as a bracketed
+  placeholder.
+  [or, when routing.case_study_url is null] omit this line entirely — email 2
+  ends with the invitation to look, and the link is appended after generation.
 EMAIL 3 INLINE PAGE: {routing.email3_url}
 EMAIL 4 INLINE PAGE: {routing.email4_url}
 EMAIL 1 CLOSE: Use this exact line, word for word, no paraphrase (close bank

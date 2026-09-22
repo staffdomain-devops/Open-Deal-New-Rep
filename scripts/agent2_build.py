@@ -107,6 +107,7 @@ def write_generated(contact_id: str, parsed: dict, research: dict) -> None:
         "call2": parsed["call2"],
         "pin": parsed["pin"],
         "case_study": research.get("case_study"),
+        "case_study_url": research.get("case_study_url"),
         "close_option": research.get("close_option"),
         "close_text": research.get("close_text"),
         "contact_first_name": research.get("contact_first_name", ""),

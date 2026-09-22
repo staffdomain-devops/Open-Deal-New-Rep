@@ -152,13 +152,19 @@ greeting — see the no-greeting-no-sign-off rule above):
  NO link. NO ask. NO pitch. Nothing about what Staff Domain does. If email 1
  explains the service, it has failed.
 
-EMAIL 2, Day 5. The case study pointer. You are given the case study NAME only.
- Do NOT describe, summarise, or hint at its contents, not even one detail. Say
- you were reading a case study of a client in a similar situation and thought it
- worth passing on, with ONE light line about why it is relevant to them (their
- industry or their old need, drawn from the brief). Then invite them to have a
- look when they get a minute. The link itself is appended after generation; do
- not write any URL or placeholder.
+EMAIL 2, Day 5. The case study pointer. You are given the case study NAME
+ only. Do NOT describe, summarise, or hint at its contents, not even one
+ detail. Say you were reading a case study of a client in a similar
+ situation and thought it worth passing on, with ONE light line about why it
+ is relevant to them (their industry or their old need, drawn from the
+ brief). Then invite them to have a look.
+ If the brief gives a CASE STUDY EMAIL 2 URL: weave that URL into the body
+ inline, exactly like the email 3/4 inline pages — mid-sentence, with a
+ natural lead-in ("Worth a look at {url} when you get a minute."), never
+ dumped on its own line. This is the only URL email 2 may contain.
+ If the brief omits that line (no URL given): write no URL at all, end on
+ the plain invitation to look "when you get a minute" — the link is
+ appended after generation.
 
 EMAIL 3, Day 10. Their world. One useful, specific observation about hiring or
  capacity in THEIR situation. Priority order for the angle:
@@ -309,8 +315,10 @@ emails carries a greeting or a sign-off of any kind — no "Hi [name],", no
 "[Rep first name]", no name of any kind at the top or bottom. The sending
 system adds the greeting and the real sender's signature separately; your
 body is only the content between them. Do not include any URL except the
-single inline url in e3 and the single inline url in e4, exactly as given in
-the brief. call1, call2 and pin carry no URLs at all."""
+single inline url in e3, the single inline url in e4, and — only when the
+brief's CASE STUDY EMAIL 2 URL line is present — the single inline url in
+e2, each exactly as given in the brief. call1, call2 and pin carry no URLs
+at all."""
 
 
 def get_system_prompt() -> str:

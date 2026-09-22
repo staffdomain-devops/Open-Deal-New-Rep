@@ -272,12 +272,31 @@ def check_h05(generated: dict) -> tuple:
 
 
 def check_h06(generated: dict, research: dict) -> tuple:
+    """URL whitelist. e1/e5 never carry a URL. e3/e4 always carry exactly one,
+    matching the brief. e2 is conditional on routing.case_study_url: when the
+    brief gave one (a verified case-study page), e2 must carry it exactly
+    like e3/e4; when it didn't (unverified vertical), e2 must carry none --
+    the placeholder is appended after generation instead (assemble_bodies.py).
+    """
     email3_url = research.get("email3_url", "")
     email4_url = research.get("email4_url", "")
-    for key in ("e1", "e2", "e5"):
+    case_study_url = research.get("case_study_url") or ""
+
+    for key in ("e1", "e5"):
         urls = URL_REGEX.findall(generated[key].get("body", ""))
         if urls:
             return (True, f"H06: {key} body contains URL(s): {urls[0]}")
+
+    e2_urls = URL_REGEX.findall(generated["e2"].get("body", ""))
+    if case_study_url:
+        if len(e2_urls) != 1:
+            return (True, f"H06: e2 body must contain exactly one URL (found {len(e2_urls)})")
+        found = _clean_url(e2_urls[0])
+        if found != case_study_url:
+            return (True, f"H06: e2 URL '{found}' does not match brief URL '{case_study_url}'")
+    elif e2_urls:
+        return (True, f"H06: e2 body contains URL(s): {e2_urls[0]}")
+
     for key, expected_url in [("e3", email3_url), ("e4", email4_url)]:
         urls = URL_REGEX.findall(generated[key].get("body", ""))
         if len(urls) != 1:

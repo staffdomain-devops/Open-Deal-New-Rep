@@ -120,6 +120,7 @@ def _build_user_message(context: dict, vr, close_option: int, close_text: str) -
         "is_only_contact": context["is_only_contact"],
         "routing": {
             "case_study": vr.case_study,
+            "case_study_url": vr.case_study_url,
             "email3_url": vr.email3_url,
             "email4_url": vr.email4_url,
         },
@@ -225,6 +226,7 @@ def main():
             "allowed_names": _allowed_names(context, vr),
             "company_name_words": _company_name_words(context),
             "case_study": vr.case_study,
+            "case_study_url": vr.case_study_url,
             "email3_url": vr.email3_url,
             "email4_url": vr.email4_url,
             "close_option": close_option,

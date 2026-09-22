@@ -13,8 +13,16 @@ from typing import List, Dict, Any
 
 @dataclass(frozen=True)
 class VerticalRoute:
-    """Result of a vertical routing lookup."""
+    """Result of a vertical routing lookup.
+
+    case_study_url is None for rows whose case-study page URL has not been
+    verified -- for those, email 2 falls back to the [Insert ... link here]
+    placeholder (assemble_bodies.py). Never guess a slug here: a wrong or
+    broken case-study link in a live email is worse than a placeholder a
+    human fills in.
+    """
     case_study: str
+    case_study_url: str | None
     email3_url: str
     email4_url: str
 
@@ -25,12 +33,14 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
     {
         "tokens": ["accounting", "bookkeep", "tax"],
         "case_study": "SJM Accountants (accounting firm)",
+        "case_study_url": "https://www.staffdomain.com/case-study/sjm-accountants/",
         "email3_url": "https://www.staffdomain.com/accounting-finance/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
     {
         "tokens": ["staffing", "recruit", "human resources", "executive search"],
         "case_study": "Cox Purtell (recruitment)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/solutions/recruitment/",
         "email4_url": "https://www.staffdomain.com/build-your-team/hr-recruitment/",
     },
@@ -46,6 +56,7 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "technology",
         ],
         "case_study": "Systemnet (Sydney MSP)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/technology/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -60,18 +71,21 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "design",
         ],
         "case_study": "Carrera by Design (construction/joinery)",
+        "case_study_url": "https://www.staffdomain.com/case-study/carrera-by-design/",
         "email3_url": "https://www.staffdomain.com/construction-engineering/",
         "email4_url": "https://www.staffdomain.com/build-your-team/construction-support/",
     },
     {
         "tokens": ["hospital", "health", "medical", "care", "wellness"],
         "case_study": "Verus (healthcare)",
+        "case_study_url": "https://www.staffdomain.com/case-study/verus-people/",
         "email3_url": "https://www.staffdomain.com/health-care/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
     {
         "tokens": ["law", "legal"],
         "case_study": "Elias Gates (legal)",
+        "case_study_url": "https://www.staffdomain.com/case-study/elias-gates/",
         "email3_url": "https://www.staffdomain.com/professional-services/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -84,12 +98,14 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "media",
         ],
         "case_study": "Capital-E (marketing and events)",
+        "case_study_url": "https://www.staffdomain.com/case-study/capital-e/",
         "email3_url": "https://www.staffdomain.com/professional-services/",
         "email4_url": "https://www.staffdomain.com/build-your-team/sales-marketing/",
     },
     {
         "tokens": ["real estate", "property", "leasing"],
         "case_study": "Capital-E (finance team)",
+        "case_study_url": None,  # not yet verified as a distinct page from "Capital-E (marketing and events)"
         "email3_url": "https://www.staffdomain.com/real-estate/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -102,12 +118,14 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "capital markets",
         ],
         "case_study": "Durst Industries (accounting)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/accounting-finance/",
         "email4_url": "https://www.staffdomain.com/solutions/",
     },
     {
         "tokens": ["consulting", "professional training", "business services"],
         "case_study": "Interlinked (professional services)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/professional-services/",
         "email4_url": "https://www.staffdomain.com/solutions/",
     },
@@ -120,6 +138,7 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "maritime",
         ],
         "case_study": "Liftango (logistics)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/industries/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -133,6 +152,7 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "leisure",
         ],
         "case_study": "EatFirst (customer service)",
+        "case_study_url": "https://www.staffdomain.com/case-study/eatfirst/",
         "email3_url": "https://www.staffdomain.com/build-your-team/customer-service/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -150,6 +170,7 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
             "printing",
         ],
         "case_study": "Bells Pure Ice (manufacturing)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/industries/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
@@ -157,10 +178,20 @@ ROUTING_TABLE: List[Dict[str, Any]] = [
     {
         "tokens": [],
         "case_study": "Bells Pure Ice (manufacturing)",
+        "case_study_url": None,  # not yet verified
         "email3_url": "https://www.staffdomain.com/industries/",
         "email4_url": "https://www.staffdomain.com/build-your-team/",
     },
 ]
+
+
+def _to_route(row: dict) -> VerticalRoute:
+    return VerticalRoute(
+        case_study=row["case_study"],
+        case_study_url=row.get("case_study_url"),
+        email3_url=row["email3_url"],
+        email4_url=row["email4_url"],
+    )
 
 
 def route(industry: str) -> VerticalRoute:
@@ -174,7 +205,7 @@ def route(industry: str) -> VerticalRoute:
                   both fall through to the default row without raising.
 
     Returns:
-        VerticalRoute with case_study, email3_url, email4_url.
+        VerticalRoute with case_study, case_study_url, email3_url, email4_url.
     """
     normalised = industry.lower().strip() if industry else ""
 
@@ -182,24 +213,11 @@ def route(industry: str) -> VerticalRoute:
         tokens = row["tokens"]
         if not tokens:
             # Default row — always matches.
-            return VerticalRoute(
-                case_study=row["case_study"],
-                email3_url=row["email3_url"],
-                email4_url=row["email4_url"],
-            )
+            return _to_route(row)
         for token in tokens:
             if token in normalised:
-                return VerticalRoute(
-                    case_study=row["case_study"],
-                    email3_url=row["email3_url"],
-                    email4_url=row["email4_url"],
-                )
+                return _to_route(row)
 
     # Unreachable: the default row (tokens=[]) always fires before we exhaust
     # the table. Guard clause for static analysis.
-    last = ROUTING_TABLE[-1]
-    return VerticalRoute(
-        case_study=last["case_study"],
-        email3_url=last["email3_url"],
-        email4_url=last["email4_url"],
-    )
+    return _to_route(ROUTING_TABLE[-1])

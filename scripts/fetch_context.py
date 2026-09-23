@@ -168,17 +168,19 @@ def fetch_all_company_contacts(company_id: str) -> list:
     return contacts
 
 
-@retry(**HS_RETRY_KWARGS)
-def fetch_deals(company_id: str) -> list:
-    """Fetch all junk-filtered deals associated with the given company."""
-    if not company_id:
-        return []
+def _is_junk_dealname(dealname: str) -> bool:
+    dealname = dealname or ""
+    name_lower = dealname.lower()
+    if name_lower.startswith("(test)") or name_lower.startswith("(delete)"):
+        return True
+    if re.search(r"\btest\b", dealname, re.IGNORECASE):
+        return True
+    return False
 
-    assoc = client.crm.associations.v4.basic_api.get_page("companies", company_id, "deals")
-    deal_ids = [r.to_object_id for r in (assoc.results or [])]
+
+def _read_deals_batch(deal_ids: list) -> list:
     if not deal_ids:
         return []
-
     batch_input = DealBatchReadInput(
         inputs=[{"id": str(did)} for did in deal_ids],
         properties=DEAL_PROPS,
@@ -189,10 +191,7 @@ def fetch_deals(company_id: str) -> list:
     for item in batch_result.results or []:
         props = item.properties or {}
         dealname = props.get("dealname") or ""
-        name_lower = dealname.lower()
-        if name_lower.startswith("(test)") or name_lower.startswith("(delete)"):
-            continue
-        if re.search(r"\btest\b", dealname, re.IGNORECASE):
+        if _is_junk_dealname(dealname):
             continue
         deals.append(
             {
@@ -204,6 +203,38 @@ def fetch_deals(company_id: str) -> list:
             }
         )
     return deals
+
+
+@retry(**HS_RETRY_KWARGS)
+def fetch_deals(company_id: str) -> list:
+    """Fetch all junk-filtered deals associated with the given COMPANY.
+
+    Deliberately company-wide, not contact-scoped: spec §3.2's DEAL HISTORY
+    narrative is meant to catch deals associated with a different contact at
+    the same company. For handover attribution, see fetch_contact_deals()
+    instead -- a different scope on purpose, not an oversight.
+    """
+    if not company_id:
+        return []
+    assoc = client.crm.associations.v4.basic_api.get_page("companies", company_id, "deals")
+    deal_ids = [r.to_object_id for r in (assoc.results or [])]
+    return _read_deals_batch(deal_ids)
+
+
+@retry(**HS_RETRY_KWARGS)
+def fetch_contact_deals(contact_id: str) -> list:
+    """Fetch junk-filtered deals associated DIRECTLY with this contact.
+
+    Used only for handover attribution (fetch_handover), not the DEAL
+    HISTORY narrative (fetch_deals, company-wide on purpose). JP confirmed
+    2026-09-24 that company-wide selection is wrong for handover: on a real
+    test record, it picked up a colleague's newer deal at the same company
+    (owner "Fredalyn") instead of this contact's own deal (owner "Mark
+    Roger"). Handover must be scoped to this contact's own deals.
+    """
+    assoc = client.crm.associations.v4.basic_api.get_page("contacts", contact_id, "deals")
+    deal_ids = [r.to_object_id for r in (assoc.results or [])]
+    return _read_deals_batch(deal_ids)
 
 
 def _fetch_engagements_paged(person_id: str) -> list:
@@ -512,13 +543,16 @@ def _fetch_one(contact_id: str) -> None:
         step = "fetch_deals"
         deals = fetch_deals(company_id)
 
+        step = "fetch_contact_deals"
+        contact_deals = fetch_contact_deals(contact_id)
+
         step = "fetch_notes"
         story_notes, live_hiring_signals = fetch_notes(
             contact_id, contact_props, all_company_contacts
         )
 
         step = "fetch_handover"
-        handover = fetch_handover(deals)
+        handover = fetch_handover(contact_deals)
 
         step = "resolve_geo"
         geo = resolve_geo(company_props, contact_props)
@@ -538,6 +572,7 @@ def _fetch_one(contact_id: str) -> None:
         "company_props": company_props,
         "all_company_contacts": all_company_contacts,
         "deals": deals,
+        "contact_deals": contact_deals,
         "story_notes": story_notes,
         "live_hiring_signals": live_hiring_signals,
         "handover": handover,

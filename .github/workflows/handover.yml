@@ -9,6 +9,16 @@ name: Contact Handover Pipeline
 #
 # The workflow_dispatch trigger below is for manual testing only (Actions tab
 # > Contact Handover Pipeline > Run workflow) — it is not used by HubSpot.
+#
+# On success, this workflow POSTs a completion signal to a HubSpot Custom
+# Webhook trigger URL (secret HUBSPOT_COMPLETION_WEBHOOK_URL — set this up
+# as a Custom Webhook trigger in the HubSpot workflow first, since
+# repository_dispatch itself is fire-and-forget and returns before
+# generation even starts, so there is no way to report success synchronously
+# from the original custom-code trigger action). Payload:
+#   {"contact_id": "<id>", "status": "generated",
+#    "emails_generated": ["e1","e2","e3","e4","e5"],
+#    "subjects": {"e1": "...", ..., "e5": "..."}}
 
 on:
   repository_dispatch:
@@ -28,6 +38,7 @@ jobs:
       HUBSPOT_API_KEY: "${{ secrets.HUBSPOT_API_KEY }}"
       ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}"
       TEAMS_WEBHOOK_URL: "${{ secrets.TEAMS_WEBHOOK_URL }}"
+      HUBSPOT_COMPLETION_WEBHOOK_URL: "${{ secrets.HUBSPOT_COMPLETION_WEBHOOK_URL }}"
       PYTHONPATH: "${{ github.workspace }}"
 
     steps:
@@ -65,6 +76,29 @@ jobs:
       - name: write-hubspot
         working-directory: scripts
         run: python write_hubspot.py "$INPUT_CONTACT_ID"
+
+      - name: notify-hubspot-generated
+        if: success()
+        run: |
+          PAYLOAD=$(jq -n \
+            --arg contact_id "$INPUT_CONTACT_ID" \
+            --slurpfile assembled "${{ runner.temp }}/assembled_${{ env.INPUT_CONTACT_ID }}.json" \
+            '{
+              contact_id: $contact_id,
+              status: "generated",
+              emails_generated: ["e1", "e2", "e3", "e4", "e5"],
+              subjects: {
+                e1: $assembled[0].e1.subject,
+                e2: $assembled[0].e2.subject,
+                e3: $assembled[0].e3.subject,
+                e4: $assembled[0].e4.subject,
+                e5: $assembled[0].e5.subject
+              }
+            }')
+          curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "$HUBSPOT_COMPLETION_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
 
       - name: upload-context-output
         uses: actions/upload-artifact@v4

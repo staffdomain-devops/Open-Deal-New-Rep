@@ -59,7 +59,7 @@ COLLEAGUE_PROPS = [
     "notes_last_contacted",
 ]
 
-DEAL_PROPS = ["dealname", "dealstage", "createdate", "closedate"]
+DEAL_PROPS = ["dealname", "dealstage", "createdate", "closedate", "hubspot_owner_id"]
 
 BOT_NOISE_PREFIXES = [
     "A new opportunity is available for",
@@ -200,6 +200,7 @@ def fetch_deals(company_id: str) -> list:
                 "dealstage": props.get("dealstage"),
                 "createdate": props.get("createdate"),
                 "closedate": props.get("closedate"),
+                "hubspot_owner_id": props.get("hubspot_owner_id"),
             }
         )
     return deals
@@ -315,53 +316,64 @@ def fetch_notes(
     return (story_notes, live_hiring_signals)
 
 
-def fetch_handover(contact_id: str) -> dict:
-    """Resolve the handover owner — the person who last contacted this contact
-    by CALL or outbound EMAIL (whichever is more recent).
+def _format_deal_date(raw: str) -> str:
+    """Best-effort "YYYY-MM-DD" from a HubSpot ISO datetime string.
 
-    Returns a dict with keys: first_name, last_contact_date, method, is_active,
-    owner_id. Returns None if zero CALL and zero outbound EMAIL engagements exist.
+    Falls back to the raw value unchanged if it doesn't parse — this is
+    narrative colour in the brief, not something lint checks, so a slightly
+    odd-looking date is fine; silently dropping it (or crashing) is not.
     """
-    engagements = _fetch_engagements_paged(contact_id)
+    if not raw:
+        return ""
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+    except (ValueError, AttributeError):
+        return raw
 
-    best_call = None
-    best_email = None
 
-    for eng in engagements:
-        engagement = eng.get("engagement", {})
-        metadata = eng.get("metadata", {})
-        eng_type = engagement.get("type")
-        timestamp = engagement.get("timestamp", 0)
-        owner_id = engagement.get("ownerId")
+def fetch_handover(deals: list) -> dict:
+    """Resolve the handover owner from the Deal record, not the Contact.
 
-        if eng_type == "CALL":
-            if best_call is None or timestamp > best_call[0]:
-                best_call = (timestamp, owner_id)
+    Rule (confirmed by JP 2026-09-23, replacing the v1.0 spec's engagement-
+    timestamp approach entirely): the reason this contact needs a handover
+    at all is that whoever owned the account's deal has since left the
+    business. The DEAL's hubspot_owner_id is that departed rep. The
+    contact's OWN current hubspot_owner_id is a different thing entirely —
+    the new/current owner the emails are written as — and this function has
+    nothing to do with resolving that; it is read directly off
+    contact_props elsewhere and needs no lookup.
 
-        elif eng_type == "EMAIL":
-            direction = metadata.get("direction")
-            if direction == "EMAIL":
-                if best_email is None or timestamp > best_email[0]:
-                    best_email = (timestamp, owner_id)
+    When a company has multiple deals, the most recently CREATED one
+    (company-wide, not scoped to just this contact) wins.
 
-    if best_call is None and best_email is None:
+    Args:
+        deals: The already-fetched, junk-filtered deal list from
+            fetch_deals() (must include hubspot_owner_id, added to
+            DEAL_PROPS for this purpose).
+
+    Returns:
+        {"first_name", "is_active", "owner_id", "deal_name", "deal_date"},
+        or None if there are no deals, or the most recent one has no owner.
+    """
+    if not deals:
         return None
 
-    if best_call is None:
-        winning_ts, winning_owner_id, method = best_email[0], best_email[1], "email"
-    elif best_email is None:
-        winning_ts, winning_owner_id, method = best_call[0], best_call[1], "call"
-    elif best_call[0] >= best_email[0]:
-        winning_ts, winning_owner_id, method = best_call[0], best_call[1], "call"
-    else:
-        winning_ts, winning_owner_id, method = best_email[0], best_email[1], "email"
+    def _sort_key(deal):
+        # Deals without a createdate sort last, not first, so a bad/missing
+        # date never wins "most recent" over a deal that actually has one.
+        return deal.get("createdate") or ""
+
+    most_recent = max(deals, key=_sort_key)
+    owner_id = most_recent.get("hubspot_owner_id")
+    if not owner_id:
+        return None
 
     @retry(**HS_RETRY_KWARGS)
     def _get_owner(owner_id):
         # A deactivated (archived) owner 404s unless archived=True is passed
         # explicitly — HubSpot's active-owner lookup and archived-owner
-        # lookup are different query paths. This pipeline targets old deals
-        # whose original rep has often since left, so the fallback matters.
+        # lookup are different query paths. This pipeline targets deals
+        # whose original owner has often since left, so the fallback matters.
         try:
             return client.crm.owners.owners_api.get_by_id(owner_id)
         except OwnerApiException as exc:
@@ -369,15 +381,14 @@ def fetch_handover(contact_id: str) -> dict:
                 return client.crm.owners.owners_api.get_by_id(owner_id, archived=True)
             raise
 
-    owner = _get_owner(winning_owner_id)
-    last_contact_date = datetime.utcfromtimestamp(winning_ts / 1000).strftime("%Y-%m-%d")
+    owner = _get_owner(owner_id)
 
     return {
         "first_name": owner.first_name,
-        "last_contact_date": last_contact_date,
-        "method": method,
         "is_active": not bool(getattr(owner, "archived", False)),
-        "owner_id": str(winning_owner_id) if winning_owner_id is not None else None,
+        "owner_id": str(owner_id),
+        "deal_name": most_recent.get("dealname") or "",
+        "deal_date": _format_deal_date(most_recent.get("createdate")),
     }
 
 
@@ -507,7 +518,7 @@ def _fetch_one(contact_id: str) -> None:
         )
 
         step = "fetch_handover"
-        handover = fetch_handover(contact_id)
+        handover = fetch_handover(deals)
 
         step = "resolve_geo"
         geo = resolve_geo(company_props, contact_props)

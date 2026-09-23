@@ -22,14 +22,16 @@ rests on reading the checks' word caps as governing generated content rather
 than the finished note. JP should confirm that reading.
 
 Because these lines are added AFTER lint runs, lint must not require them:
-CALL_LABELS and PIN_LABELS in scripts/lint.py deliberately omit them.
+CALL_LABELS in scripts/lint.py deliberately omits them, and the pin no
+longer has a labelled skeleton at all (see PIN_APPENDIX below).
 
 Source: New SDR - Deal old deal outreach.md §6.1, §6.2, §6.3
 """
 
 # The one deviation from the templates as written: their em dashes are rendered
-# here as a full stop (call1) and a comma (pin RULES). Spec check 2 bans the em
-# dash, and these strings are written straight into HubSpot properties.
+# here as a full stop (call1) and a comma (pin RULES/PIN_APPENDIX). Spec check
+# 2 bans the em dash, and these strings are written straight into HubSpot
+# properties.
 
 CALL1_WHY = (
     "WHY THIS CALL: Intro call, sequence touch 3 of 7. Warm, no pitch. "
@@ -44,15 +46,24 @@ CALL2_WHY = (
     "E4 just delivered the what's-changed news."
 )
 
-# Amendment check 18 requires this line verbatim. The model writes it (it sits
-# mid-note, above RULES), so unlike the lines above it is checked, not appended.
-SEQUENCE_LINE = "E1 D1 · E2 D5 · Call D7 · E3 D10 · E4 D15 · Call D17 · E5 D21."
-
-PIN_RULES = (
-    "RULES: Any reply kills the sequence, respond personally and close open "
-    "call tasks. If Call 1 connects, skip or rewrite E3 before it sends. Never "
-    "reference their silence or apologise for the gap. Say \"dedicated team / "
-    "someone who works only for you\", never offshoring or BPO."
+# Appended to the model's pin paragraph. Used to be two things the model had
+# to write itself: a machine-shorthand SEQUENCE line ("E1 D1 · E2 D5 · Call
+# D7 · ...") checked character-for-character, and a labelled RULES block.
+# Both are pure boilerplate that never varies per contact, and both read like
+# a system log rather than a note from a colleague, so they're rewritten as
+# plain sentences and moved here -- one less thing for a sales rep to parse,
+# and one less thing for the model to get exactly right.
+PIN_APPENDIX = (
+    "\n\nThe plan from here: an intro email today (Day 1), a case study "
+    "follow-up on Day 5, an intro call around Day 7, a check-in email on "
+    "Day 10, an update on what's changed on Day 15, another call attempt "
+    "around Day 17, and a final note on Day 21.\n\n"
+    "A few things to keep in mind: if they reply at any point, that ends the "
+    "sequence, reply to them personally and close out any open call tasks. "
+    "If the Day 7 call actually connects, skip email 3 or tweak its opening "
+    "before it sends. Don't bring up their silence or apologise for the gap. "
+    "And always call it a dedicated team or someone who works only for "
+    "them, never offshoring or BPO."
 )
 
 

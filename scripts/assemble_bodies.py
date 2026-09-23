@@ -14,12 +14,14 @@ import os
 import re
 import sys
 
-from config.call_note_boilerplate import CALL2_WHY, PIN_RULES, call1_why
+from config.call_note_boilerplate import CALL2_WHY, PIN_APPENDIX, call1_why
 from utils import write_dlq
 
 RUNNER_TEMP = os.environ.get("RUNNER_TEMP", ".")
 
 _WHY_THIS_CALL_RE = re.compile(r"^[ \t]*WHY THIS CALL\b[^\n:]*:", re.IGNORECASE | re.MULTILINE)
+# Defensive only: the pin prompt no longer uses a "RULES:" label at all, but
+# if a drifting model ever emits one anyway, don't double up the appendix.
 _RULES_RE = re.compile(r"^[ \t]*RULES\b[^\n:]*:", re.IGNORECASE | re.MULTILINE)
 
 
@@ -38,11 +40,11 @@ def _prepend_why(body: str, why_line: str) -> str:
     return why_line + "\n" + body.lstrip("\n")
 
 
-def _append_rules(body: str) -> str:
-    """Put the fixed RULES block at the bottom of the pin note."""
+def _append_pin_appendix(body: str) -> str:
+    """Put the fixed plan+rules appendix at the bottom of the pin note."""
     if _RULES_RE.search(body):
         return body
-    return body.rstrip("\n") + "\n" + PIN_RULES
+    return body.rstrip("\n") + PIN_APPENDIX
 
 
 def main():
@@ -82,7 +84,7 @@ def main():
             call1_why(generated.get("contact_first_name", "")),
         )
         assembled["call2"]["body"] = _prepend_why(generated["call2"]["body"], CALL2_WHY)
-        assembled["pin"]["body"] = _append_rules(generated["pin"]["body"])
+        assembled["pin"]["body"] = _append_pin_appendix(generated["pin"]["body"])
 
         out_path = os.path.join(RUNNER_TEMP, f"assembled_{contact_id}.json")
         with open(out_path, "w", encoding="utf-8") as f:

@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 
 from agent2_build import OutputParseError, write_generated
 from agent3_fix import fix_generated
-from config.call_note_boilerplate import SEQUENCE_LINE
 from utils import write_dlq
 
 # ---------------------------------------------------------------------------
@@ -47,8 +46,8 @@ SIGNOFF_MARKERS = ("[rep first name]", "kind regards", "cheers", "best regards")
 CALL_LABELS = (
     "WHO", "HISTORY", "HOW IT ENDED", "EMAILS SO FAR", "GOAL", "IF VOICEMAIL",
 )
-# The pin has its own skeleton (§6.3) and carries no HISTORY label.
-PIN_LABELS = ("WHY", "STORY", "HOW IT ENDED", "SEQUENCE")
+# The pin dropped its labelled skeleton in favour of one flowing paragraph
+# (see config/system_prompt.py PIN section) -- no PIN_LABELS any more.
 
 CARICATURE_WORDS = (
     "mob", "have a crack", "been burnt", "no dramas", "no worries", "all good",
@@ -104,11 +103,13 @@ def _clean_url(url: str) -> str:
 
 
 def _label_pattern(label: str) -> re.Pattern:
-    """Match a labelled section header at the start of a line.
+    """Match a labelled section header (e.g. "WHO:") at the start of a line.
 
-    Tolerates a parenthetical between the label and its colon, because the
-    pin's sequence header is `SEQUENCE (enrolled {date}):` when an enrolment
-    date is available and a bare `SEQUENCE:` when it is not.
+    Tolerates a parenthetical between the label and its colon (e.g.
+    "LABEL (detail):"). Nothing in the current CALL_LABELS set uses this,
+    but it's a harmless generalisation to keep -- it used to matter for the
+    pin's old "SEQUENCE (enrolled {date}):" header, before the pin dropped
+    its labelled skeleton in favour of one flowing paragraph.
     """
     return re.compile(
         r"^[ \t]*" + re.escape(label) + r"\b[^\n:]*:",
@@ -465,6 +466,13 @@ def check_h13(generated: dict) -> tuple:
 
 
 def check_h14(generated: dict, research: dict) -> tuple:
+    """Required structure for call1/call2 (labelled), and for pin (prose).
+
+    The pin dropped its labelled skeleton (WHY/STORY/HOW IT ENDED/SEQUENCE)
+    in favour of one flowing paragraph a rep would actually want to read, so
+    there is no label to check there any more -- just that it isn't empty,
+    and that the previous rep's name appears somewhere in it (see below).
+    """
     for key in ("call1", "call2"):
         body = generated[key].get("body", "")
         for label in CALL_LABELS:
@@ -472,9 +480,8 @@ def check_h14(generated: dict, research: dict) -> tuple:
                 return (True, f"H14: {key} missing '{label}' label")
 
     pin_body = generated["pin"].get("body", "")
-    for label in PIN_LABELS:
-        if not _has_label(pin_body, label):
-            return (True, f"H14: pin missing '{label}' label")
+    if not pin_body.strip():
+        return (True, "H14: pin body is empty")
 
     # The invention detector's inverse: the previous rep is the one name that
     # MUST appear, because it is the caller's only bridge into the relationship.
@@ -483,9 +490,8 @@ def check_h14(generated: dict, research: dict) -> tuple:
         history = _label_section(generated["call1"].get("body", ""), "HISTORY", CALL_LABELS)
         if prev_rep.lower() not in history.lower():
             return (True, f"H14: call1 HISTORY does not name previous rep '{prev_rep}'")
-        why = _label_section(pin_body, "WHY", PIN_LABELS)
-        if prev_rep.lower() not in why.lower():
-            return (True, f"H14: pin WHY does not name previous rep '{prev_rep}'")
+        if prev_rep.lower() not in pin_body.lower():
+            return (True, f"H14: pin does not name previous rep '{prev_rep}'")
     return (False, "")
 
 
@@ -501,13 +507,18 @@ def check_h15(generated: dict) -> tuple:
 
 
 def check_h16(generated: dict, research: dict) -> tuple:
+    """call1/call2 mark this with a 'DO NOT SAY:' label; the pin (prose, no
+    labels) marks it with the fixed lead-in phrase 'Steer clear of:' instead
+    -- either marker satisfies the check on any of the three notes."""
     sensitive = research.get("sensitive_items") or []
     if not sensitive:
         return (False, "")
+    markers = ("do not say", "steer clear of")
     for key in CALL_KEYS:
-        if "do not say" in generated[key].get("body", "").lower():
+        body_lower = generated[key].get("body", "").lower()
+        if any(marker in body_lower for marker in markers):
             return (False, "")
-    return (True, "H16: sensitive items present but no DO NOT SAY line found in call notes")
+    return (True, "H16: sensitive items present but no DO NOT SAY / Steer clear of line found in call notes")
 
 
 def check_h17(generated: dict, research: dict) -> tuple:
@@ -531,16 +542,11 @@ def check_h17(generated: dict, research: dict) -> tuple:
     return (False, "")
 
 
-def check_h18(generated: dict) -> tuple:
-    section = _label_section(generated["pin"].get("body", ""), "SEQUENCE", PIN_LABELS)
-    if not section.strip():
-        return (True, "H18: pin body missing SEQUENCE line")
-    # Collapse the model's line wrapping before comparing; everything else about
-    # the line is fixed.
-    actual = " ".join(section.split())
-    if actual != SEQUENCE_LINE:
-        return (True, f"H18: pin SEQUENCE line is '{actual}', expected '{SEQUENCE_LINE}'")
-    return (False, "")
+# H18 (pin SEQUENCE line must match exactly) removed: the touch-cadence line
+# is no longer written by the model at all -- it's fixed boilerplate code
+# appends after lint runs (config/call_note_boilerplate.py PIN_APPENDIX),
+# the same way call1/call2's WHY THIS CALL line and the old pin RULES block
+# always were. Nothing the model produces needs checking here any more.
 
 
 def check_h19(generated: dict, research: dict) -> tuple:
@@ -635,7 +641,6 @@ def run_lint(generated: dict, research: dict) -> tuple:
         lambda: check_h15(generated),
         lambda: check_h16(generated, research),
         lambda: check_h17(generated, research),
-        lambda: check_h18(generated),
         lambda: check_h19(generated, research),
     ]
 

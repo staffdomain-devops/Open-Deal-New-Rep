@@ -278,39 +278,62 @@ minutes." Budget: 8 words.
 Those budgets sum to 88 even with DO NOT SAY present, leaving headroom under
 the 100-word hard cap.
 
-PIN (the contact-record note the new owner reads first). End at SEQUENCE. The
-RULES block is fixed boilerplate that code adds, so do not write one:
-=== LANE A RE-ENGAGEMENT (OWNER CHANGED) - READ BEFORE ANY TOUCH ===
-WHY: Past prospect, real conversations, never became a client. {Previous rep
-first name} owned this account and has left the business. You are the new
-owner introducing yourself. Warm handover, not cold outbound. Budget: 22 words.
-STORY: {role/company shape, role(s) discussed, key colleagues, one or two
-lines. Budget: 24 words.}
-HOW IT ENDED: {real outcome, truth included. Budget: 16 words.}
-DO NOT SAY: {omit line if none. Budget: 10 words.}
-SEQUENCE: E1 D1 · E2 D5 · Call D7 · E3 D10 · E4 D15 · Call D17 · E5 D21.
+LENGTH OF CALL1 AND CALL2 — MANDATORY FINAL CHECK. The per-label budgets
+above are ceilings you write to, not a rough guide. Before you write the
+closing brace of the JSON object, silently count words for call1 and call2
+exactly as lint will: every label you wrote except TIMEZONE (WHY THIS CALL
+is not yours to count — code adds it). If either is at or over 100 words,
+you have failed even if the copy reads well — cut words from whichever
+label is over its own budget above (DO NOT SAY down to a bare
+phrase-to-avoid and its replacement, WHO down to a fragment) until both
+notes are under the cap, then output. No greeting, no sign-off, no
+persuasion: these are briefings, not emails. Cut words inside a label,
+never a label.
 
-That SEQUENCE line is checked character for character. Write it exactly as
-shown, with no enrolment date: you are not given one and must not invent one.
-It runs to roughly 20 words on its own, on top of the budgets above — the
-total (WHY + STORY + HOW IT ENDED + DO NOT SAY + SEQUENCE) is budgeted at
-about 92 words, comfortably under the 130-word hard cap.
+PIN (the contact-record note the new owner reads first). This is a colleague
+leaving a helpful note, not a system report — write it in plain, warm,
+complete sentences, the way you'd actually explain the account to the new
+owner in person. No banner, no ALL-CAPS labels, no "===" divider, no
+sequence/cadence line: those are fixed boilerplate the code adds after you,
+so don't write any of them.
 
-LENGTH OF THE NOTES — MANDATORY FINAL CHECK. The per-label budgets above are
-ceilings you write to, not a rough guide. Before you write the closing brace
-of the JSON object, silently count words for each of the three notes exactly
-as lint will: call1 and call2 count every label you wrote except TIMEZONE
-(WHY THIS CALL is not yours to count — code adds it); pin counts everything
-including SEQUENCE. If call1 or call2 is at or over 100, or pin is over 130,
-you have failed even if the copy reads well — go back and cut words from
-whichever label is over its own budget above (DO NOT SAY down to a bare
-phrase-to-avoid and its replacement, WHO and STORY down to fragments) until
-every note is under its cap, then output. No greeting, no sign-off, no
-persuasion: these are briefings, not emails. Cut words inside a label, never
-a label.
+Write ONE short paragraph, in this order, as flowing prose (not separate
+labelled fields):
+ (a) Why this account is being handed over: past prospect, real
+     conversations, never became a client. Name {previous rep first name}
+     and say plainly they've left the business, and that the reader is now
+     the one introducing themselves. Budget: about 30 words.
+ (b) The backstory: what the company does, the role(s) that were discussed,
+     and the key colleague(s) involved, in one or two natural sentences.
+     Budget: about 30 words.
+ (c) How it actually ended, truth included — this is the one place that
+     real outcome belongs, even if an email was never allowed to say it.
+     Budget: about 20 words.
+ (d) ONLY if the brief marks something INTERNAL - NEVER REFERENCE: one
+     final sentence starting with the exact words "Steer clear of:" naming
+     what must never come up and, briefly, why. Omit this sentence entirely
+     if there is nothing sensitive to flag. Budget: about 15 words.
 
-Body text uses \\n\\n between paragraphs in the five emails; the call notes and
-the pin put each labelled line on its own single line. None of the five
+That paragraph should read naturally start to finish — like "Ivan John ran
+this account and has left the business, so you're the one introducing
+yourself now. [Company] is an accounting firm; back in [month/year] we
+talked to them and Fredalyn about hiring an Auditor. They weren't interested
+at the time and said they'd only reconsider if it became necessary — it
+closed lost in [month/year]. Steer clear of: don't say "not interested"
+outright, and don't get into cost or legality." — not a form with headers.
+
+LENGTH OF THE NOTE — MANDATORY FINAL CHECK. About 95 words total for the
+paragraph above (a+b+c+d combined) is the target; 130 words is the hard
+ceiling, and landing at or over it is a failure even if the copy reads well.
+Before you write the closing brace of the JSON object, count the pin's
+words. If it's too long, cut (c) and (d) down to bare facts first, then (b),
+before ever cutting (a) — the handover premise is the one thing that must
+stay complete. No greeting, no sign-off, no persuasion: this is a briefing,
+not an email.
+
+Body text uses \\n\\n between paragraphs in the five emails; the call notes
+put each labelled line on its own single line; the pin is one flowing
+paragraph, no labels. None of the five
 emails carries a greeting or a sign-off of any kind — no "Hi [name],", no
 "[Rep first name]", no name of any kind at the top or bottom. The sending
 system adds the greeting and the real sender's signature separately; your

@@ -26,7 +26,16 @@ _RULES_RE = re.compile(r"^[ \t]*RULES\b[^\n:]*:", re.IGNORECASE | re.MULTILINE)
 
 
 def _append_placeholder(body: str, placeholder: str) -> str:
-    return body + "\n" + placeholder
+    """Append a link placeholder as its own paragraph.
+
+    Was body + "\n" + placeholder -- a single newline, not the "\n\n" the
+    rest of the body uses between paragraphs, so the placeholder landed
+    glued directly under the last sentence with no visual gap instead of
+    getting its own paragraph break like spec §6 describes ("blank line ->
+    case study placeholder line"). rstrip first so a body that already ends
+    in a newline doesn't end up with three.
+    """
+    return body.rstrip("\n") + "\n\n" + placeholder
 
 
 def _prepend_why(body: str, why_line: str) -> str:
